@@ -10,7 +10,6 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { deputesApi, loisApi, groupesApi } from '@/services/api';
-import Chargement from '@/components/common/Chargement';
 
 export default function Accueil() {
   // Récupérer quelques statistiques
@@ -34,7 +33,15 @@ export default function Accueil() {
     enCours?: number;
   } | undefined;
 
-  const lois = (loisRecentes?.donnees as unknown[])?.slice(0, 5);
+  interface LoiResume {
+    id: string;
+    titre: string;
+    titreCourt?: string;
+    statut: string;
+    dateDepot: string;
+  }
+
+  const lois = (loisRecentes?.donnees as LoiResume[] | undefined)?.slice(0, 5);
 
   const sections = [
     {
@@ -193,7 +200,7 @@ export default function Accueil() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lois.map((loi: { id: string; titre: string; titreCourt?: string; statut: string; dateDepot: string }) => (
+              {lois.map((loi) => (
                 <Link
                   key={loi.id}
                   to={`/lois/${loi.id}`}

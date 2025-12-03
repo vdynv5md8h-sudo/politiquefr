@@ -25,7 +25,7 @@ export default function ThemeToggle() {
     { valeur: 'system', nom: 'Système', icone: ComputerDesktopIcon },
   ] as const;
 
-  const iconeActuelle = effectiveTheme === 'dark' ? MoonIcon : SunIcon;
+  const IconeActuelle = effectiveTheme === 'dark' ? MoonIcon : SunIcon;
 
   return (
     <div className="relative" ref={refMenu}>
@@ -34,7 +34,7 @@ export default function ThemeToggle() {
         className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         aria-label="Changer le thème"
       >
-        <iconeActuelle className="h-5 w-5" />
+        <IconeActuelle className="h-5 w-5" />
       </button>
 
       {menuOuvert && (
