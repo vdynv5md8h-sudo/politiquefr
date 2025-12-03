@@ -1,5 +1,12 @@
-# Render Blueprint - PolitiqueFR Backend
+# Render Blueprint - PolitiqueFR
 # Deploy: https://dashboard.render.com/select-repo?type=blueprint
+
+databases:
+  - name: politiquefr-db
+    region: frankfurt
+    plan: free
+    databaseName: politiquefr
+    user: politiquefr
 
 services:
   - type: web
@@ -8,14 +15,16 @@ services:
     region: frankfurt
     plan: free
     rootDir: backend
-    buildCommand: npm install && npx prisma generate && npm run build && mkdir -p prisma/data && npx prisma migrate deploy && npm run db:seed
+    buildCommand: npm install && npx prisma generate && npm run build && npx prisma migrate deploy && npm run db:seed
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:./prisma/data/politiquefr.db
+        fromDatabase:
+          name: politiquefr-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
