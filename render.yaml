@@ -8,19 +8,15 @@ services:
     region: frankfurt
     plan: free
     rootDir: backend
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npm run start:prod
+    buildCommand: npm install && npx prisma generate && npm run build && mkdir -p prisma/data && npx prisma migrate deploy && npm run db:seed
+    startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:/opt/render/project/src/prisma/data/politiquefr.db
+        value: file:./prisma/data/politiquefr.db
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://frontend-vdynv5md8h-sudos-projects.vercel.app
-    disk:
-      name: politiquefr-data
-      mountPath: /opt/render/project/src/prisma/data
-      sizeGB: 1
+        value: https://frontend-3zd8umz86-vdynv5md8h-sudos-projects.vercel.app
