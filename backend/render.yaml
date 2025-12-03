@@ -1,0 +1,26 @@
+# Configuration Render pour le backend PolitiqueFR
+# Ce fichier peut être utilisé pour le déploiement automatique via Infrastructure as Code
+
+services:
+  - type: web
+    name: politiquefr-api
+    runtime: node
+    region: frankfurt # Proche de la France
+    plan: starter
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run db:migrate:prod && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./data/politiquefr.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false # À définir manuellement après déploiement du frontend
+    disk:
+      name: politiquefr-data
+      mountPath: /opt/render/project/src/prisma/data
+      sizeGB: 1
+    healthCheckPath: /health
+    autoDeploy: true

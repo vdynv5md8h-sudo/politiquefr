@@ -1,0 +1,28 @@
+{
+  "name": "@politiquefr/data",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scripts de synchronisation des données pour PolitiqueFR",
+  "scripts": {
+    "sync": "tsx scripts/syncTout.ts",
+    "sync:maires": "tsx scripts/recupererMaires.ts",
+    "sync:deputes": "tsx scripts/recupererDeputes.ts",
+    "sync:senateurs": "tsx scripts/recupererSenateurs.ts",
+    "sync:lois": "tsx scripts/recupererLois.ts",
+    "validate": "tsx scripts/validerDonnees.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.6.0",
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "csv-parse": "^5.5.0",
+    "fast-csv": "^4.3.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prisma": "^5.6.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,57 @@
+# Dépendances
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Cache
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# Environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Base de données
+*.db
+*.sqlite
+*.sqlite3
+prisma/migrations/*_migration_lock.toml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+coverage/
+
+# Données brutes téléchargées
+data/brut/*
+!data/brut/.gitkeep
+
+# Données traitées
+data/traite/*
+!data/traite/.gitkeep

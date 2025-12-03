@@ -1,0 +1,667 @@
+// Schema Prisma pour PolitiqueFR
+// Base de données: SQLite
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ÉLUS - MAIRES ====================
+
+model Maire {
+  id                  String   @id @default(cuid())
+  rneId               String   @unique // ID du Répertoire National des Élus
+
+  // Informations personnelles
+  civilite            String   // "M." ou "Mme"
+  prenom              String
+  nom                 String
+  dateNaissance       DateTime?
+  lieuNaissance       String?
+  profession          String?
+
+  // Informations sur le mandat
+  codeCommune         String
+  libelleCommune      String
+  codeDepartement     String
+  libelleDepartement  String
+  codeRegion          String?
+  libelleRegion       String?
+
+  dateDebutMandat     DateTime
+  dateFinMandat       DateTime?
+  fonctionMandat      String   // "Maire", "Maire délégué"
+
+  // Nuance politique
+  codeNuance          String?
+  libelleNuance       String?
+
+  // Contact
+  email               String?
+  telephone           String?
+  siteWeb             String?
+
+  // Métadonnées
+  photoUrl            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  promesses           Promesse[]
+
+  @@index([codeDepartement])
+  @@index([codeCommune])
+  @@index([nom, prenom])
+  @@index([codeNuance])
+}
+
+// ==================== ÉLUS - DÉPUTÉS ====================
+
+model Depute {
+  id                      String   @id @default(cuid())
+  slug                    String   @unique // Slug nosdeputes.fr
+
+  // Informations personnelles
+  civilite                String
+  prenom                  String
+  nom                     String
+  nomUsuel                String?
+  dateNaissance           DateTime?
+  lieuNaissance           String?
+  profession              String?
+
+  // Informations sur le mandat
+  legislature             Int
+  numeroCirconscription   Int
+  departement             String
+  codeDepartement         String?
+  dateDebutMandat         DateTime
+  dateFinMandat           DateTime?
+  motifFin                String?  // "Fin de législature", "Démission", etc.
+  mandatEnCours           Boolean  @default(true)
+
+  // Groupe politique
+  groupeId                String?
+  groupe                  GroupePolitique? @relation(fields: [groupeId], references: [id])
+
+  // Statistiques d'activité
+  presenceCommission      Float?
+  presenceHemicycle       Float?
+  participationScrutins   Float?
+  questionsEcrites        Int?
+  questionsOrales         Int?
+  propositionsLoi         Int?
+  rapports                Int?
+  interventions           Int?
+  amendementsProposes     Int?
+  amendementsAdoptes      Int?
+
+  // Liens et contact
+  email                   String?
+  twitter                 String?
+  facebook                String?
+  siteWeb                 String?
+  photoUrl                String?
+  urlNosdeputes           String?
+  urlAssemblee            String?
+
+  // Métadonnées
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  votes                   VoteDepute[]
+  promesses               Promesse[]
+
+  @@index([groupeId])
+  @@index([departement])
+  @@index([codeDepartement])
+  @@index([legislature])
+  @@index([nom, prenom])
+  @@index([mandatEnCours])
+}
+
+// ==================== ÉLUS - SÉNATEURS ====================
+
+model Senateur {
+  id                    String   @id @default(cuid())
+  matricule             String   @unique // Identifiant Sénat
+
+  // Informations personnelles
+  civilite              String
+  prenom                String
+  nom                   String
+  dateNaissance         DateTime?
+  lieuNaissance         String?
+  profession            String?
+
+  // Informations sur le mandat
+  departement           String
+  codeDepartement       String
+  serieSenat            Int      // 1 ou 2
+  dateDebutMandat       DateTime
+  dateFinMandat         DateTime?
+  typeElection          String?  // "Élection", "Remplacement"
+  mandatEnCours         Boolean  @default(true)
+
+  // Groupe politique
+  groupeId              String?
+  groupe                GroupePolitique? @relation(fields: [groupeId], references: [id])
+
+  // Statistiques d'activité
+  presenceCommission    Float?
+  presenceSeance        Float?
+  questionsEcrites      Int?
+  questionsOrales       Int?
+  propositionsLoi       Int?
+  rapports              Int?
+
+  // Liens et contact
+  email                 String?
+  twitter               String?
+  siteWeb               String?
+  photoUrl              String?
+  urlSenat              String?
+
+  // Métadonnées
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  votes                 VoteSenateur[]
+  promesses             Promesse[]
+
+  @@index([groupeId])
+  @@index([codeDepartement])
+  @@index([nom, prenom])
+  @@index([mandatEnCours])
+}
+
+// ==================== GROUPES POLITIQUES ====================
+
+model GroupePolitique {
+  id                String   @id @default(cuid())
+  acronyme          String
+  nom               String
+  chambre           Chambre  // ASSEMBLEE ou SENAT
+
+  // Description
+  ideologie         String?
+  positionPolitique String?  // "Gauche", "Centre-Gauche", "Centre", "Centre-Droit", "Droite"
+  description       String?
+  couleur           String?  // Couleur hex pour les visualisations
+
+  // Statistiques
+  nombreMembres     Int      @default(0)
+
+  // Liens
+  siteWeb           String?
+  logoUrl           String?
+
+  // Métadonnées
+  dateCreation      DateTime?
+  actif             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  deputes           Depute[]
+  senateurs         Senateur[]
+
+  @@unique([acronyme, chambre])
+  @@index([chambre])
+  @@index([actif])
+}
+
+enum Chambre {
+  ASSEMBLEE
+  SENAT
+}
+
+// ==================== LOIS ET TEXTES ====================
+
+model Loi {
+  id                  String    @id @default(cuid())
+  dossierId           String    @unique // ID du dossier législatif
+
+  // Informations de base
+  titre               String
+  titreOfficiel       String?
+  titreCourt          String?
+  type                TypeLoi
+
+  // Statut et dates
+  statut              StatutLoi
+  dateDepot           DateTime
+  dateAdoption        DateTime?
+  datePromulgation    DateTime?
+  numeroJo            String?   // Référence Journal Officiel
+
+  // Contenu
+  resume              String?
+  exposeDesMotifs     String?
+  urlDossier          String?
+  urlTexte            String?
+
+  // Auteurs et rapporteurs (JSON)
+  auteurs             String?   // JSON array des noms
+  rapporteurs         String?   // JSON array des noms
+
+  // Thème
+  themeId             String?
+  theme               ThemeLoi? @relation(fields: [themeId], references: [id])
+
+  // Métadonnées
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  scrutins            Scrutin[]
+  amendements         Amendement[]
+
+  @@index([statut])
+  @@index([type])
+  @@index([dateDepot])
+  @@index([themeId])
+}
+
+enum TypeLoi {
+  PROJET_LOI
+  PROPOSITION_LOI
+  PROJET_LOI_ORGANIQUE
+  PROPOSITION_LOI_ORGANIQUE
+  PROJET_LOI_FINANCES
+  PROJET_LOI_REGLEMENT
+  PROJET_LOI_FINANCEMENT_SECU
+  PROPOSITION_RESOLUTION
+}
+
+enum StatutLoi {
+  DEPOSE
+  EN_COMMISSION
+  EN_SEANCE
+  ADOPTE_PREMIERE_LECTURE
+  NAVETTE
+  ADOPTE_DEFINITIF
+  PROMULGUE
+  REJETE
+  RETIRE
+  CADUQUE
+}
+
+model ThemeLoi {
+  id    String @id @default(cuid())
+  nom   String @unique
+  lois  Loi[]
+}
+
+// ==================== SCRUTINS ET VOTES ====================
+
+model Scrutin {
+  id                String          @id @default(cuid())
+  numeroScrutin     Int
+  chambre           Chambre
+  legislature       Int?
+
+  // Timing
+  dateScrutin       DateTime
+  seance            String?
+
+  // Sujet
+  titre             String
+  objet             String?
+  loiId             String?
+  loi               Loi?            @relation(fields: [loiId], references: [id])
+
+  // Résultats
+  nombreVotants     Int
+  nombreSuffrages   Int
+  majoriteAbsolue   Int
+  pour              Int
+  contre            Int
+  abstention        Int
+  resultat          ResultatScrutin
+
+  // Liens
+  urlScrutin        String?
+
+  // Métadonnées
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  votesDeputes      VoteDepute[]
+  votesSenateurs    VoteSenateur[]
+
+  @@unique([numeroScrutin, chambre, legislature])
+  @@index([dateScrutin])
+  @@index([loiId])
+  @@index([chambre])
+}
+
+enum ResultatScrutin {
+  ADOPTE
+  REJETE
+}
+
+model VoteDepute {
+  id            String        @id @default(cuid())
+  deputeId      String
+  depute        Depute        @relation(fields: [deputeId], references: [id], onDelete: Cascade)
+  scrutinId     String
+  scrutin       Scrutin       @relation(fields: [scrutinId], references: [id], onDelete: Cascade)
+
+  position      PositionVote
+  parDelegation Boolean       @default(false)
+
+  createdAt     DateTime      @default(now())
+
+  @@unique([deputeId, scrutinId])
+  @@index([scrutinId])
+  @@index([position])
+}
+
+model VoteSenateur {
+  id            String        @id @default(cuid())
+  senateurId    String
+  senateur      Senateur      @relation(fields: [senateurId], references: [id], onDelete: Cascade)
+  scrutinId     String
+  scrutin       Scrutin       @relation(fields: [scrutinId], references: [id], onDelete: Cascade)
+
+  position      PositionVote
+  parDelegation Boolean       @default(false)
+
+  createdAt     DateTime      @default(now())
+
+  @@unique([senateurId, scrutinId])
+  @@index([scrutinId])
+  @@index([position])
+}
+
+enum PositionVote {
+  POUR
+  CONTRE
+  ABSTENTION
+  NON_VOTANT
+}
+
+// ==================== AMENDEMENTS ====================
+
+model Amendement {
+  id              String          @id @default(cuid())
+  numero          String
+  chambre         Chambre
+
+  loiId           String
+  loi             Loi             @relation(fields: [loiId], references: [id], onDelete: Cascade)
+
+  // Contenu
+  dispositif      String?
+  exposeSommaire  String?
+
+  // Auteur(s) - JSON array
+  auteurs         String
+
+  // Statut
+  sort            SortAmendement
+  dateDepot       DateTime
+  dateDiscussion  DateTime?
+
+  // Liens
+  urlAmendement   String?
+
+  createdAt       DateTime        @default(now())
+
+  @@index([loiId])
+  @@index([dateDepot])
+  @@index([sort])
+}
+
+enum SortAmendement {
+  ADOPTE
+  REJETE
+  RETIRE
+  TOMBE
+  IRRECEVABLE
+  NON_SOUTENU
+  EN_COURS
+}
+
+// ==================== PROMESSES ÉLECTORALES ====================
+
+model Promesse {
+  id              String          @id @default(cuid())
+
+  // Qui a fait la promesse
+  maireId         String?
+  maire           Maire?          @relation(fields: [maireId], references: [id], onDelete: Cascade)
+  deputeId        String?
+  depute          Depute?         @relation(fields: [deputeId], references: [id], onDelete: Cascade)
+  senateurId      String?
+  senateur        Senateur?       @relation(fields: [senateurId], references: [id], onDelete: Cascade)
+
+  // Contenu de la promesse
+  titre           String
+  description     String?
+  source          String?         // URL ou référence
+  datePromesse    DateTime?
+
+  // Statut
+  statut          StatutPromesse  @default(NON_EVALUEE)
+  evaluation      String?
+  dateEvaluation  DateTime?
+
+  // Métadonnées
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([maireId])
+  @@index([deputeId])
+  @@index([senateurId])
+  @@index([statut])
+}
+
+enum StatutPromesse {
+  NON_EVALUEE
+  EN_COURS
+  PARTIELLEMENT_TENUE
+  TENUE
+  NON_TENUE
+  ABANDONNEE
+}
+
+// ==================== ACTUALITÉS ====================
+
+model ArticleActualite {
+  id              String            @id @default(cuid())
+
+  // Contenu
+  titre           String
+  contenu         String
+  resume          String?
+
+  // Source
+  source          String            // Nom du flux RSS
+  sourceUrl       String?
+  auteur          String?
+  guidSource      String?           @unique // GUID du flux RSS pour éviter les doublons
+
+  // Catégorisation
+  categorie       CategorieActualite
+  tags            String?           // JSON array
+
+  // Modération
+  statut          StatutActualite   @default(EN_ATTENTE)
+  modereePar      String?
+  modereeA        DateTime?
+  noteModeration  String?
+
+  // Publication
+  datePublication DateTime
+  imageUrl        String?
+
+  // Métadonnées
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([categorie])
+  @@index([statut])
+  @@index([datePublication])
+}
+
+enum CategorieActualite {
+  POLITIQUE_GENERALE
+  ASSEMBLEE
+  SENAT
+  GOUVERNEMENT
+  ELECTIONS
+  AFFAIRES_JUDICIAIRES
+  CONTROVERSES
+  ECONOMIE
+  SOCIAL
+  INTERNATIONAL
+}
+
+enum StatutActualite {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+  ARCHIVE
+}
+
+// ==================== AFFAIRES JUDICIAIRES ====================
+
+model AffaireJudiciaire {
+  id                String              @id @default(cuid())
+
+  // Informations de base
+  titre             String
+  description       String
+
+  // Personnes impliquées (JSON array)
+  personnes         String
+  type              TypeAffaire
+
+  // Timeline
+  dateDebut         DateTime
+  dateJugement      DateTime?
+  statut            StatutAffaire
+
+  // Détails
+  juridiction       String?
+  reference         String?             // Référence du dossier
+
+  // Dernière actualité
+  derniereActualite String?
+  dateActualite     DateTime?
+
+  // Sources (JSON array d'URLs)
+  sources           String?
+
+  // Métadonnées
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([statut])
+  @@index([type])
+  @@index([dateDebut])
+}
+
+enum TypeAffaire {
+  CORRUPTION
+  ABUS_DE_CONFIANCE
+  DETOURNEMENT_FONDS
+  PRISE_ILLEGALE_INTERETS
+  EMPLOI_FICTIF
+  FRAUDE_FISCALE
+  FINANCEMENT_ILLEGAL_CAMPAGNE
+  DIFFAMATION
+  HARCELEMENT
+  AUTRE
+}
+
+enum StatutAffaire {
+  ENQUETE
+  INSTRUCTION
+  PROCES
+  CONDAMNE
+  RELAXE
+  APPEL
+  CASSATION
+  PRESCRIT
+  CLASSE_SANS_SUITE
+  NON_LIEU
+}
+
+// ==================== ADMINISTRATION ====================
+
+model Utilisateur {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  motDePasseHash  String
+  nom             String
+  role            RoleUtilisateur @default(MODERATEUR)
+
+  actif           Boolean       @default(true)
+  derniereConnexion DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  journauxAudit   JournalAudit[]
+}
+
+enum RoleUtilisateur {
+  ADMIN
+  MODERATEUR
+}
+
+model JournalAudit {
+  id              String        @id @default(cuid())
+  utilisateurId   String
+  utilisateur     Utilisateur   @relation(fields: [utilisateurId], references: [id])
+
+  action          String
+  typeEntite      String
+  entiteId        String?
+  details         String?       // JSON
+  adresseIp       String?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([utilisateurId])
+  @@index([typeEntite, entiteId])
+  @@index([createdAt])
+}
+
+// ==================== SYNCHRONISATION DES DONNÉES ====================
+
+model JournalSync {
+  id                  String      @id @default(cuid())
+  typeDonnees         String      // "maires", "deputes", "senateurs", "lois", "actualites"
+  statut              StatutSync
+
+  debuteA             DateTime
+  termineA            DateTime?
+
+  enregistrementsTraites  Int     @default(0)
+  enregistrementsCrees    Int     @default(0)
+  enregistrementsMisAJour Int     @default(0)
+  enregistrementsErreurs  Int     @default(0)
+
+  messageErreur       String?
+
+  @@index([typeDonnees])
+  @@index([debuteA])
+  @@index([statut])
+}
+
+enum StatutSync {
+  EN_COURS
+  TERMINE
+  ECHEC
+}
