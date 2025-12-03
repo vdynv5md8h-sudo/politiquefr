@@ -1,13 +1,6 @@
 # Render Blueprint - PolitiqueFR
 # Deploy: https://dashboard.render.com/select-repo?type=blueprint
 
-databases:
-  - name: politiquefr-db
-    region: frankfurt
-    plan: free
-    databaseName: politiquefr
-    user: politiquefr
-
 services:
   - type: web
     name: politiquefr-api
@@ -22,9 +15,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: politiquefr-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
