@@ -2,10 +2,12 @@ import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 
 // Configuration de base
 // En développement: utilise le proxy Vite vers localhost:3001
-// En production: utilise l'URL de l'API Render définie dans VITE_API_URL
+// En production: utilise l'URL de l'API Render
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api/v1`
-  : '/api/v1';
+  : import.meta.env.PROD
+    ? 'https://politiquefr-api-a0w4.onrender.com/api/v1'
+    : '/api/v1';
 
 // Instance Axios configurée
 export const api = axios.create({
