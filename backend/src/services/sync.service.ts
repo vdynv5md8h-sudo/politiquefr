@@ -412,12 +412,151 @@ export async function synchroniserMaires(_journalId: string): Promise<ResultatSy
   return { traites, crees, misAJour, erreurs };
 }
 
+// ==================== SYNC LOIS ====================
+
+interface DossierNosdeputes {
+  section: {
+    id: number;
+    id_dossier_institution: string;
+    titre: string;
+    min_date: string;
+    max_date: string;
+    nb_interventions: number;
+    url_institution: string;
+    url_nosdeputes: string;
+    url_nosdeputes_api: string;
+  };
+}
+
+function determinerTypeLoi(titre: string, urlInstitution: string): 'PROJET_LOI' | 'PROPOSITION_LOI' | 'PROJET_LOI_FINANCES' | 'PROJET_LOI_ORGANIQUE' | 'PROPOSITION_LOI_ORGANIQUE' | 'PROJET_LOI_FINANCEMENT_SECU' | 'PROPOSITION_RESOLUTION' | 'PROJET_LOI_REGLEMENT' {
+  const titreLower = titre.toLowerCase();
+  const urlLower = urlInstitution.toLowerCase();
+
+  if (titreLower.includes('projet de loi de finances') || urlLower.includes('plf')) {
+    return 'PROJET_LOI_FINANCES';
+  }
+  if (titreLower.includes('projet de loi de financement de la sécurité sociale') || urlLower.includes('plfss')) {
+    return 'PROJET_LOI_FINANCEMENT_SECU';
+  }
+  if (titreLower.includes('projet de loi de règlement')) {
+    return 'PROJET_LOI_REGLEMENT';
+  }
+  if (titreLower.includes('projet de loi organique')) {
+    return 'PROJET_LOI_ORGANIQUE';
+  }
+  if (titreLower.includes('proposition de loi organique')) {
+    return 'PROPOSITION_LOI_ORGANIQUE';
+  }
+  if (titreLower.includes('proposition de résolution')) {
+    return 'PROPOSITION_RESOLUTION';
+  }
+  if (titreLower.includes('projet de loi')) {
+    return 'PROJET_LOI';
+  }
+  // Par défaut, proposition de loi
+  return 'PROPOSITION_LOI';
+}
+
+function determinerStatutLoi(_minDate: string, maxDate: string, nbInterventions: number): 'DEPOSE' | 'EN_COMMISSION' | 'EN_SEANCE' | 'ADOPTE_PREMIERE_LECTURE' | 'NAVETTE' | 'ADOPTE_DEFINITIF' | 'PROMULGUE' | 'REJETE' | 'CADUQUE' {
+  // Logique simplifiée basée sur les données disponibles
+  // La dissolution de juin 2024 a rendu caduques beaucoup de textes
+  const dissolution = new Date('2024-06-09');
+  const dateMax = new Date(maxDate);
+
+  if (dateMax < dissolution && nbInterventions > 0) {
+    // Si le dossier a eu des interventions avant la dissolution
+    // et que la dernière activité est proche de la dissolution, probablement caduque
+    const joursDifference = (dissolution.getTime() - dateMax.getTime()) / (1000 * 60 * 60 * 24);
+    if (joursDifference < 30) {
+      return 'CADUQUE';
+    }
+  }
+
+  if (nbInterventions > 100) {
+    return 'EN_SEANCE';
+  }
+  if (nbInterventions > 10) {
+    return 'EN_COMMISSION';
+  }
+  return 'DEPOSE';
+}
+
+export async function synchroniserLois(_journalId: string): Promise<ResultatSync> {
+  logInfo('Démarrage sync lois...');
+
+  let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
+
+  try {
+    // Récupérer la liste des dossiers législatifs
+    const response = await axios.get('https://www.nosdeputes.fr/dossiers/date/json', {
+      headers: { 'User-Agent': 'PolitiqueFR/1.0' },
+      timeout: 60000,
+    });
+
+    const dossiers: DossierNosdeputes[] = response.data.sections || [];
+    logInfo(`${dossiers.length} dossiers législatifs trouvés`);
+
+    for (const item of dossiers) {
+      try {
+        const d = item.section;
+
+        const dossierId = `nosdeputes-${d.id}`;
+        const typeLoi = determinerTypeLoi(d.titre, d.url_institution || '');
+        const statutLoi = determinerStatutLoi(d.min_date, d.max_date, d.nb_interventions);
+
+        const donnees = {
+          dossierId,
+          titre: d.titre,
+          titreOfficiel: d.titre,
+          titreCourt: d.titre.length > 100 ? d.titre.substring(0, 97) + '...' : d.titre,
+          type: typeLoi,
+          statut: statutLoi,
+          dateDepot: new Date(d.min_date),
+          urlDossier: d.url_nosdeputes,
+          urlTexte: d.url_institution || null,
+          resume: `Dossier législatif avec ${d.nb_interventions} interventions parlementaires. Période d'activité : du ${d.min_date} au ${d.max_date}.`,
+        };
+
+        const existant = await prisma.loi.findUnique({ where: { dossierId } });
+
+        if (existant) {
+          await prisma.loi.update({ where: { dossierId }, data: donnees });
+          misAJour++;
+        } else {
+          await prisma.loi.create({ data: donnees });
+          crees++;
+        }
+
+        traites++;
+
+        // Log progression tous les 50
+        if (traites % 50 === 0) {
+          logInfo(`Lois: ${traites}/${dossiers.length} traitées...`);
+        }
+      } catch (err) {
+        erreurs++;
+        if (erreurs <= 5) {
+          logError(`Erreur loi ${item.section?.id}`, err);
+        }
+      }
+    }
+
+    logInfo(`Sync lois terminée: ${traites} traitées, ${crees} créées, ${misAJour} mises à jour, ${erreurs} erreurs`);
+  } catch (err) {
+    logError('Erreur sync lois', err);
+    throw err;
+  }
+
+  return { traites, crees, misAJour, erreurs };
+}
+
 // ==================== ORCHESTRATEUR ====================
 
 export async function executerSyncComplete(): Promise<{
   deputes: ResultatSync;
   senateurs: ResultatSync;
   maires: ResultatSync;
+  lois: ResultatSync;
 }> {
   const journal = await prisma.journalSync.create({
     data: {
@@ -431,11 +570,12 @@ export async function executerSyncComplete(): Promise<{
     const deputes = await synchroniserDeputes(journal.id);
     const senateurs = await synchroniserSenateurs(journal.id);
     const maires = await synchroniserMaires(journal.id);
+    const lois = await synchroniserLois(journal.id);
 
-    const totalTraites = deputes.traites + senateurs.traites + maires.traites;
-    const totalCrees = deputes.crees + senateurs.crees + maires.crees;
-    const totalMisAJour = deputes.misAJour + senateurs.misAJour + maires.misAJour;
-    const totalErreurs = deputes.erreurs + senateurs.erreurs + maires.erreurs;
+    const totalTraites = deputes.traites + senateurs.traites + maires.traites + lois.traites;
+    const totalCrees = deputes.crees + senateurs.crees + maires.crees + lois.crees;
+    const totalMisAJour = deputes.misAJour + senateurs.misAJour + maires.misAJour + lois.misAJour;
+    const totalErreurs = deputes.erreurs + senateurs.erreurs + maires.erreurs + lois.erreurs;
 
     await prisma.journalSync.update({
       where: { id: journal.id },
@@ -449,7 +589,7 @@ export async function executerSyncComplete(): Promise<{
       },
     });
 
-    return { deputes, senateurs, maires };
+    return { deputes, senateurs, maires, lois };
   } catch (err) {
     await prisma.journalSync.update({
       where: { id: journal.id },

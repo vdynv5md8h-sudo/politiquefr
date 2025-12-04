@@ -11,6 +11,7 @@ import {
   synchroniserDeputes,
   synchroniserSenateurs,
   synchroniserMaires,
+  synchroniserLois,
   executerSyncComplete,
 } from '../services/sync.service';
 import { logInfo } from '../utils/logger';
@@ -170,6 +171,50 @@ router.post('/maires', verifierCleSync, asyncHandler(async (_req: Request, res: 
 
     return reponseSucces(res, {
       message: 'Synchronisation des maires terminée',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/lois?key=xxx - Synchroniser les lois
+router.post('/lois', verifierCleSync, asyncHandler(async (_req: Request, res: Response) => {
+  logInfo('Sync lois déclenchée via API');
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'lois',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await synchroniserLois(journal.id);
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsCrees: resultat.crees,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Synchronisation des lois terminée',
       resultat,
     });
   } catch (err) {
