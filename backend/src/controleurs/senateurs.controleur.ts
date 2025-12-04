@@ -124,3 +124,41 @@ export async function promessesSenateur(req: Request, res: Response): Promise<Re
 
   return reponseSucces(res, promesses);
 }
+
+// Activité d'un sénateur avec comparaison aux moyennes
+export async function activiteSenateur(req: Request, res: Response): Promise<Response> {
+  const senateur = await prisma.senateur.findFirst({
+    where: { OR: [{ id: req.params.id }, { matricule: req.params.id }] },
+    select: {
+      id: true,
+      nom: true,
+      prenom: true,
+      presenceCommission: true,
+      presenceSeance: true,
+      questionsEcrites: true,
+      questionsOrales: true,
+      propositionsLoi: true,
+      rapports: true,
+    },
+  });
+
+  if (!senateur) return reponseNonTrouve(res, 'Sénateur');
+
+  // Calculer les moyennes du Sénat
+  const moyennes = await prisma.senateur.aggregate({
+    _avg: {
+      presenceCommission: true,
+      presenceSeance: true,
+      questionsEcrites: true,
+      questionsOrales: true,
+      propositionsLoi: true,
+      rapports: true,
+    },
+    where: { mandatEnCours: true },
+  });
+
+  return reponseSucces(res, {
+    senateur,
+    moyennesSenat: moyennes._avg,
+  });
+}

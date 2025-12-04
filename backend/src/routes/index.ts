@@ -13,8 +13,12 @@ import routesAuth from './auth.routes';
 import routesAdmin from './admin.routes';
 import routesGeo from './geo.routes';
 import routesSync from './sync.routes';
+import routesDashboard from './dashboard.routes';
 
 const router = Router();
+
+// Routes publiques - Dashboard
+router.use('/dashboard', routesDashboard);
 
 // Routes publiques - Élus
 router.use('/maires', routesMaires);

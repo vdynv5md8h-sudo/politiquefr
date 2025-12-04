@@ -3,11 +3,15 @@ import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { deputesApi } from '@/services/api';
 import Chargement from '@/components/common/Chargement';
-import type { Depute } from '@/types';
+import type { Depute, VoteDepute, PositionVote } from '@/types';
 import {
   EnvelopeIcon,
   GlobeAltIcon,
   ArrowTopRightOnSquareIcon,
+  CheckIcon,
+  XMarkIcon,
+  MinusIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DeputeDetailPage() {
@@ -25,7 +29,16 @@ export default function DeputeDetailPage() {
     enabled: !!id,
   });
 
+  const { data: votesData } = useQuery({
+    queryKey: ['depute-votes', id],
+    queryFn: () => deputesApi.votes(id!, 1),
+    enabled: !!id,
+  });
+
   const depute = data?.donnees as Depute | undefined;
+  const votesResponse = votesData?.donnees as { votes: VoteDepute[]; statistiques: Record<string, number> } | undefined;
+  const votes = votesResponse?.votes || [];
+  const statsVotes = votesResponse?.statistiques;
   const activite = activiteData?.donnees as {
     depute: Depute;
     moyennesAssemblee: Record<string, number | null>;
@@ -215,28 +228,109 @@ export default function DeputeDetailPage() {
           </div>
         </div>
 
-        {/* Placeholder pour les votes et promesses */}
+        {/* Votes et statistiques */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="card p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Derniers votes
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              Les votes seront affichés après synchronisation des données.
-            </p>
+            {votes.length > 0 ? (
+              <div className="space-y-3">
+                {votes.slice(0, 5).map((vote) => (
+                  <VoteCard key={vote.id} vote={vote} />
+                ))}
+                {votes.length > 5 && (
+                  <p className="text-sm text-gray-500 text-center mt-4">
+                    Et {votes.length - 5} autres votes...
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                Aucun vote enregistré pour le moment.
+              </p>
+            )}
           </div>
 
           <div className="card p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Promesses électorales
+              Statistiques de vote
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              Les promesses seront ajoutées prochainement.
-            </p>
+            {statsVotes && statsVotes.total > 0 ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{statsVotes.pour || 0}</div>
+                    <div className="text-sm text-gray-500">Pour</div>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{statsVotes.contre || 0}</div>
+                    <div className="text-sm text-gray-500">Contre</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-600">{statsVotes.abstention || 0}</div>
+                    <div className="text-sm text-gray-500">Abstention</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-400">{statsVotes.nonVotant || 0}</div>
+                    <div className="text-sm text-gray-500">Non votant</div>
+                  </div>
+                </div>
+                <div className="text-center text-sm text-gray-500 pt-2 border-t dark:border-gray-700">
+                  Total : {statsVotes.total} scrutins
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                Aucune statistique de vote disponible.
+              </p>
+            )}
           </div>
+        </div>
+
+        {/* Sources */}
+        <div className="mt-8 text-center text-xs text-gray-400">
+          Sources : Assemblée nationale, NosDéputés.fr
         </div>
       </div>
     </>
+  );
+}
+
+// Composant pour afficher un vote
+function VoteCard({ vote }: { vote: VoteDepute }) {
+  const positionConfig: Record<PositionVote, { icon: React.ElementType; color: string; label: string }> = {
+    POUR: { icon: CheckIcon, color: 'text-green-600 bg-green-50 dark:bg-green-900/20', label: 'Pour' },
+    CONTRE: { icon: XMarkIcon, color: 'text-red-600 bg-red-50 dark:bg-red-900/20', label: 'Contre' },
+    ABSTENTION: { icon: MinusIcon, color: 'text-gray-600 bg-gray-50 dark:bg-gray-800', label: 'Abstention' },
+    NON_VOTANT: { icon: NoSymbolIcon, color: 'text-gray-400 bg-gray-50 dark:bg-gray-800', label: 'Non votant' },
+  };
+
+  const config = positionConfig[vote.position];
+  const Icon = config.icon;
+
+  return (
+    <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <div className={`p-2 rounded-full ${config.color}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-grow min-w-0">
+        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {vote.scrutin?.titre || 'Vote sans titre'}
+        </p>
+        <p className="text-xs text-gray-500">
+          {vote.scrutin?.dateScrutin ? new Date(vote.scrutin.dateScrutin).toLocaleDateString('fr-FR') : 'Date inconnue'}
+          {vote.scrutin?.resultat && (
+            <span className={`ml-2 ${vote.scrutin.resultat === 'ADOPTE' ? 'text-green-600' : 'text-red-600'}`}>
+              {vote.scrutin.resultat === 'ADOPTE' ? 'Adopté' : 'Rejeté'}
+            </span>
+          )}
+        </p>
+      </div>
+      <span className={`text-xs font-medium px-2 py-1 rounded ${config.color}`}>
+        {config.label}
+      </span>
+    </div>
   );
 }
 

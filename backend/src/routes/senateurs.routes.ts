@@ -47,6 +47,13 @@ router.get(
   asyncHandler(controleurSenateurs.votesSenateur)
 );
 
+// GET /api/v1/senateurs/:id/activite - Activité d'un sénateur avec moyennes
+router.get(
+  '/:id/activite',
+  middlewareCache(TTL_CACHE.SENATEURS),
+  asyncHandler(controleurSenateurs.activiteSenateur)
+);
+
 // GET /api/v1/senateurs/:id/promesses - Promesses d'un sénateur
 router.get(
   '/:id/promesses',

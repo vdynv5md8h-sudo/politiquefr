@@ -9,65 +9,94 @@ import {
   BuildingLibraryIcon,
   MapPinIcon,
 } from '@heroicons/react/24/outline';
-import { deputesApi, loisApi, groupesApi } from '@/services/api';
+import { dashboardApi } from '@/services/api';
+import Chargement from '@/components/common/Chargement';
+import GroupeBarChart from '@/components/charts/GroupeBarChart';
+import GenreDonutChart from '@/components/charts/GenreDonutChart';
+import ScrutinsRecents from '@/components/dashboard/ScrutinsRecents';
+import LoisEnCours from '@/components/dashboard/LoisEnCours';
 
-export default function Accueil() {
-  // Récupérer quelques statistiques
-  const { data: statsDeputes } = useQuery({
-    queryKey: ['deputes-stats'],
-    queryFn: deputesApi.stats,
-  });
+interface GroupeData {
+  id: string;
+  acronyme: string;
+  nom: string;
+  couleur: string;
+  nombre: number;
+}
 
-  const { data: loisRecentes } = useQuery({
-    queryKey: ['lois-recentes'],
-    queryFn: loisApi.recentes,
-  });
-
-  const { data: composition } = useQuery({
-    queryKey: ['groupes-composition'],
-    queryFn: groupesApi.composition,
-  });
-
-  const stats = statsDeputes?.donnees as {
-    total?: number;
-    enCours?: number;
-  } | undefined;
-
-  interface LoiResume {
+interface Scrutin {
+  id: string;
+  titre: string;
+  dateScrutin: string;
+  resultat: 'ADOPTE' | 'REJETE' | null;
+  chambre: 'ASSEMBLEE' | 'SENAT';
+  pour: number;
+  contre: number;
+  abstention: number;
+  loi?: {
     id: string;
     titre: string;
     titreCourt?: string;
-    statut: string;
-    dateDepot: string;
-  }
+  } | null;
+}
 
-  const lois = (loisRecentes?.donnees as LoiResume[] | undefined)?.slice(0, 5);
+interface Loi {
+  id: string;
+  titre: string;
+  titreCourt?: string;
+  statut: string;
+  type: string;
+  dateDepot: string;
+}
+
+interface DashboardData {
+  compteurs: {
+    deputes: number;
+    senateurs: number;
+    maires: number;
+  };
+  groupesAssemblee: GroupeData[];
+  groupesSenat: GroupeData[];
+  genreAssemblee: { hommes: number; femmes: number };
+  genreSenat: { hommes: number; femmes: number };
+  scrutinsRecents: Scrutin[];
+  loisEnCours: Loi[];
+}
+
+export default function Accueil() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: dashboardApi.get,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const dashboard = data?.donnees as DashboardData | undefined;
 
   const sections = [
     {
-      titre: 'Députés',
-      description: 'Consultez les profils des 577 députés de l\'Assemblée nationale',
+      titre: 'Deputes',
+      description: 'Consultez les profils des 577 deputes de l\'Assemblee nationale',
       icone: UserGroupIcon,
       lien: '/deputes',
       couleur: 'bg-blue-500',
     },
     {
-      titre: 'Sénateurs',
-      description: 'Découvrez les 348 sénateurs et leur activité parlementaire',
+      titre: 'Senateurs',
+      description: 'Decouvrez les 348 senateurs et leur activite parlementaire',
       icone: BuildingLibraryIcon,
       lien: '/senateurs',
       couleur: 'bg-purple-500',
     },
     {
       titre: 'Maires',
-      description: 'Accédez aux fiches des maires de France',
+      description: 'Accedez aux fiches des maires de France',
       icone: MapPinIcon,
       lien: '/maires',
       couleur: 'bg-green-500',
     },
     {
       titre: 'Groupes politiques',
-      description: 'Explorez la composition de l\'Assemblée et du Sénat',
+      description: 'Explorez la composition de l\'Assemblee et du Senat',
       icone: ScaleIcon,
       lien: '/groupes',
       couleur: 'bg-orange-500',
@@ -80,8 +109,8 @@ export default function Accueil() {
       couleur: 'bg-red-500',
     },
     {
-      titre: 'Actualités',
-      description: 'Restez informé de l\'actualité politique française',
+      titre: 'Actualites',
+      description: 'Restez informe de l\'actualite politique francaise',
       icone: NewspaperIcon,
       lien: '/actualites',
       couleur: 'bg-indigo-500',
@@ -91,10 +120,10 @@ export default function Accueil() {
   return (
     <>
       <Helmet>
-        <title>PolitiqueFR - Portail d'information politique française</title>
+        <title>PolitiqueFR - Portail d'information politique francaise</title>
         <meta
           name="description"
-          content="Découvrez les profils des élus français, suivez les votes au Parlement, et restez informé de l'actualité politique."
+          content="Decouvrez les profils des elus francais, suivez les votes au Parlement, et restez informe de l'actualite politique."
         />
       </Helmet>
 
@@ -103,18 +132,18 @@ export default function Accueil() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
           <div className="text-center">
             <h1 className="text-3xl md:text-5xl font-bold text-white mb-6">
-              La politique française en transparence
+              La politique francaise en transparence
             </h1>
             <p className="text-lg md:text-xl text-blue-100 max-w-3xl mx-auto mb-8">
-              Accédez aux profils des élus, suivez les votes au Parlement, explorez les lois
-              et restez informé de l'actualité politique.
+              Accedez aux profils des elus, suivez les votes au Parlement, explorez les lois
+              et restez informe de l'actualite politique.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link
                 to="/deputes"
                 className="btn bg-white text-blue-600 hover:bg-blue-50 px-6 py-3"
               >
-                Découvrir les députés
+                Decouvrir les deputes
               </Link>
               <Link
                 to="/lois"
@@ -128,27 +157,96 @@ export default function Accueil() {
       </section>
 
       {/* Statistiques rapides */}
-      {stats && (
-        <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <section className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {isLoading ? (
+            <div className="flex justify-center py-4">
+              <Chargement taille="sm" />
+            </div>
+          ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               <div>
-                <div className="text-3xl font-bold text-blue-600">{stats.enCours || 577}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Députés en exercice</div>
+                <div className="text-3xl font-bold text-blue-600">
+                  {dashboard?.compteurs.deputes || 577}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Deputes en exercice</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-purple-600">348</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Sénateurs</div>
+                <div className="text-3xl font-bold text-purple-600">
+                  {dashboard?.compteurs.senateurs || 348}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Senateurs</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-green-600">~35 000</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {dashboard?.compteurs.maires?.toLocaleString('fr-FR') || '~35 000'}
+                </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Maires de France</div>
               </div>
               <div>
                 <div className="text-3xl font-bold text-orange-600">
-                  {(composition?.donnees as { assemblee?: unknown[] })?.assemblee?.length || 10}
+                  {(dashboard?.groupesAssemblee?.length || 0) + (dashboard?.groupesSenat?.length || 0) || 16}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Groupes politiques</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Dashboard avec graphiques */}
+      {dashboard && (
+        <section className="py-12 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+              Vue d'ensemble du Parlement
+            </h2>
+
+            {/* Repartition par groupe politique */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <div className="card p-6">
+                <GroupeBarChart
+                  data={dashboard.groupesAssemblee}
+                  titre="Assemblee nationale"
+                />
+              </div>
+              <div className="card p-6">
+                <GroupeBarChart
+                  data={dashboard.groupesSenat}
+                  titre="Senat"
+                />
+              </div>
+            </div>
+
+            {/* Repartition par genre */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="card p-6">
+                <GenreDonutChart
+                  data={dashboard.genreAssemblee}
+                  titre="Parite a l'Assemblee nationale"
+                />
+              </div>
+              <div className="card p-6">
+                <GenreDonutChart
+                  data={dashboard.genreSenat}
+                  titre="Parite au Senat"
+                />
+              </div>
+            </div>
+
+            {/* Activite parlementaire */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Derniers scrutins
+                </h3>
+                <ScrutinsRecents scrutins={dashboard.scrutinsRecents} />
+              </div>
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Textes en discussion
+                </h3>
+                <LoisEnCours lois={dashboard.loisEnCours} />
               </div>
             </div>
           </div>
@@ -156,10 +254,10 @@ export default function Accueil() {
       )}
 
       {/* Sections principales */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+      <section className="py-16 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-            Explorer par catégorie
+            Explorer par categorie
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sections.map((section) => (
@@ -187,50 +285,15 @@ export default function Accueil() {
         </div>
       </section>
 
-      {/* Lois récentes */}
-      {lois && lois.length > 0 && (
-        <section className="py-16 bg-white dark:bg-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Dernières lois
-              </h2>
-              <Link to="/lois" className="link text-sm">
-                Voir toutes les lois →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lois.map((loi) => (
-                <Link
-                  key={loi.id}
-                  to={`/lois/${loi.id}`}
-                  className="card-hover p-5"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="badge-primary">{loi.statut}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(loi.dateDepot).toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-                  <h3 className="font-medium text-gray-900 dark:text-white line-clamp-2">
-                    {loi.titreCourt || loi.titre}
-                  </h3>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Section données ouvertes */}
+      {/* Section donnees ouvertes */}
       <section className="py-16 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Données ouvertes et transparence
+            Donnees ouvertes et transparence
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
-            PolitiqueFR utilise exclusivement des données publiques issues des sources
-            officielles françaises. Aucun cookie de traçage n'est utilisé.
+            PolitiqueFR utilise exclusivement des donnees publiques issues des sources
+            officielles francaises. Aucun cookie de tracage n'est utilise.
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
             <a

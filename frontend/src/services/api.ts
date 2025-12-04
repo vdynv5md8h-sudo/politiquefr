@@ -101,7 +101,10 @@ export const senateursApi = {
   liste: (params?: { page?: number; limite?: number; groupeId?: string }) =>
     get<unknown[]>('/senateurs', { params }),
   detail: (id: string) => get<unknown>(`/senateurs/${id}`),
+  activite: (id: string) => get<unknown>(`/senateurs/${id}/activite`),
+  votes: (id: string, page?: number) => get<unknown>(`/senateurs/${id}/votes`, { params: { page } }),
   recherche: (q: string) => get<unknown[]>('/senateurs/recherche', { params: { q } }),
+  stats: () => get<unknown>('/senateurs/stats'),
 };
 
 // Maires
@@ -164,4 +167,9 @@ export const geoApi = {
   regions: () => get<unknown>('/geo/regions'),
   deputeCirconscription: (codeDept: string, numCirco: number) =>
     get<unknown>(`/geo/circonscription/${codeDept}/${numCirco}/depute`),
+};
+
+// Dashboard
+export const dashboardApi = {
+  get: () => get<unknown>('/dashboard'),
 };
