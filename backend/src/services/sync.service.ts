@@ -155,13 +155,23 @@ export async function synchroniserDeputes(_journalId: string): Promise<ResultatS
   let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
 
   try {
-    const response = await axios.get('https://www.nosdeputes.fr/deputes/enmandat/json', {
+    // Note: /deputes/enmandat/json peut être vide si l'Assemblée est dissoute
+    // On utilise /deputes/json qui contient tous les députés (y compris anciens)
+    const response = await axios.get('https://www.nosdeputes.fr/deputes/json', {
       headers: { 'User-Agent': 'PolitiqueFR/1.0' },
-      timeout: 30000,
+      timeout: 60000,
     });
 
-    const deputes: DeputeNosdeputes[] = response.data.deputes || [];
-    logInfo(`${deputes.length} députés trouvés`);
+    const tousDeputes: DeputeNosdeputes[] = response.data.deputes || [];
+
+    // Filtrer pour ne garder que les députés de la dernière législature (mandat récent)
+    const deputes = tousDeputes.filter(item => {
+      const d = item.depute;
+      // Garder ceux dont le mandat a commencé après 2022 (XVIIe législature)
+      return d.mandat_debut && new Date(d.mandat_debut) >= new Date('2022-06-01');
+    });
+
+    logInfo(`${deputes.length} députés trouvés (sur ${tousDeputes.length} total)`);
 
     for (const item of deputes) {
       try {
