@@ -58,11 +58,31 @@ export default function SenateurDetailPage() {
   return (
     <>
       <Helmet>
-        <title>{senateur.prenom} {senateur.nom} - Sénateur - PolitiqueFR</title>
+        <title>{senateur.prenom} {senateur.nom} - Senateur - PolitiqueFR</title>
         <meta
           name="description"
-          content={`Profil de ${senateur.civilite} ${senateur.prenom} ${senateur.nom}, sénateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}. Série ${senateur.serieSenat}, renouvellement ${anneeRenouvellement}.`}
+          content={`Profil de ${senateur.civilite} ${senateur.prenom} ${senateur.nom}, senateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}. Serie ${senateur.serieSenat}, renouvellement ${anneeRenouvellement}.`}
         />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: `${senateur.prenom} ${senateur.nom}`,
+            jobTitle: `Senateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}`,
+            worksFor: {
+              '@type': 'Organization',
+              name: 'Senat',
+              url: 'https://www.senat.fr',
+            },
+            memberOf: senateur.groupe ? {
+              '@type': 'Organization',
+              name: senateur.groupe.nom,
+            } : undefined,
+            image: senateur.photoUrl || undefined,
+            email: senateur.email || undefined,
+            url: senateur.siteWeb || senateur.urlSenat || undefined,
+          })}
+        </script>
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

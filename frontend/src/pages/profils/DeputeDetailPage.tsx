@@ -68,11 +68,31 @@ export default function DeputeDetailPage() {
   return (
     <>
       <Helmet>
-        <title>{depute.prenom} {depute.nom} - Député - PolitiqueFR</title>
+        <title>{depute.prenom} {depute.nom} - Depute - PolitiqueFR</title>
         <meta
           name="description"
-          content={`Profil de ${depute.civilite} ${depute.prenom} ${depute.nom}, député${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}.`}
+          content={`Profil de ${depute.civilite} ${depute.prenom} ${depute.nom}, depute${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}. Activite parlementaire, votes, et statistiques.`}
         />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: `${depute.prenom} ${depute.nom}`,
+            jobTitle: `Depute${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}`,
+            worksFor: {
+              '@type': 'Organization',
+              name: 'Assemblee nationale',
+              url: 'https://www.assemblee-nationale.fr',
+            },
+            memberOf: depute.groupe ? {
+              '@type': 'Organization',
+              name: depute.groupe.nom,
+            } : undefined,
+            image: depute.photoUrl || undefined,
+            email: depute.email || undefined,
+            url: depute.siteWeb || undefined,
+          })}
+        </script>
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -53,8 +53,30 @@ export default function MaireDetailPage() {
         <title>{maire.prenom} {maire.nom} - Maire de {maire.libelleCommune} - PolitiqueFR</title>
         <meta
           name="description"
-          content={`Profil de ${maire.civilite} ${maire.prenom} ${maire.nom}, maire de ${maire.libelleCommune} (${maire.codeDepartement}).`}
+          content={`Profil de ${maire.civilite} ${maire.prenom} ${maire.nom}, maire de ${maire.libelleCommune} (${maire.codeDepartement}). Informations de contact et mandat.`}
         />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: `${maire.prenom} ${maire.nom}`,
+            jobTitle: `Maire de ${maire.libelleCommune}`,
+            worksFor: {
+              '@type': 'GovernmentOrganization',
+              name: `Mairie de ${maire.libelleCommune}`,
+              address: {
+                '@type': 'PostalAddress',
+                addressLocality: maire.libelleCommune,
+                addressRegion: maire.libelleDepartement,
+                addressCountry: 'FR',
+              },
+            },
+            image: maire.photoUrl || undefined,
+            email: maire.email || undefined,
+            telephone: maire.telephone || undefined,
+            url: maire.siteWeb || undefined,
+          })}
+        </script>
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
