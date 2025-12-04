@@ -52,3 +52,15 @@ export const limiteurAdmin = rateLimit({
     message: 'Trop de requêtes admin.',
   },
 });
+
+// Limiteur pour la synchronisation (très permissif - une seule requête à la fois)
+export const limiteurSync = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 10, // 10 syncs par heure max
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statut: 429,
+    message: 'Trop de synchronisations. Veuillez attendre.',
+  },
+});

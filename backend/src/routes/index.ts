@@ -12,6 +12,7 @@ import routesRecherche from './recherche.routes';
 import routesAuth from './auth.routes';
 import routesAdmin from './admin.routes';
 import routesGeo from './geo.routes';
+import routesSync from './sync.routes';
 
 const router = Router();
 
@@ -41,5 +42,8 @@ router.use('/auth', routesAuth);
 
 // Routes admin (protégées)
 router.use('/admin', routesAdmin);
+
+// Routes de synchronisation (protégées par clé secrète)
+router.use('/sync', routesSync);
 
 export default router;
