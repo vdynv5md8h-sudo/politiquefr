@@ -5,8 +5,7 @@ import { config, estProduction } from './env';
 const originesAutorisees = estProduction
   ? [
       config.FRONTEND_URL,
-      'https://frontend-rjo0ra01u-vdynv5md8h-sudos-projects.vercel.app',
-      'https://frontend-3zd8umz86-vdynv5md8h-sudos-projects.vercel.app',
+      'https://frontend-woad-tau-52.vercel.app',
       // Autoriser tous les sous-domaines Vercel du projet
     ].filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
@@ -16,9 +15,11 @@ const optionsCors: cors.CorsOptions = {
     // Autoriser les requêtes sans origin (curl, apps mobiles)
     if (!origin) return callback(null, true);
 
-    // Vérifier si l'origin est dans la liste ou est un sous-domaine Vercel du projet
+    // Vérifier si l'origin est dans la liste ou est un domaine Vercel autorisé
     const estAutorise = originesAutorisees.some(o => origin === o) ||
-      origin.includes('vdynv5md8h-sudos-projects.vercel.app');
+      origin.includes('vdynv5md8h-sudos-projects.vercel.app') ||
+      origin.includes('frontend-woad-tau-52.vercel.app') ||
+      (origin.endsWith('.vercel.app') && origin.includes('politiquefr'));
 
     if (estAutorise) {
       callback(null, true);
