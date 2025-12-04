@@ -24,3 +24,4 @@ services:
       sizeGB: 1
     healthCheckPath: /health
     autoDeploy: true
+
