@@ -13,7 +13,7 @@ import {
   synchroniserMaires,
   executerSyncComplete,
 } from '../services/sync.service';
-import { logInfo, logError } from '../utils/logger';
+import { logInfo } from '../utils/logger';
 
 const router = Router();
 
@@ -21,11 +21,12 @@ const router = Router();
 const SYNC_SECRET = process.env.SYNC_SECRET || 'politiquefr-sync-2024';
 
 // Middleware de vérification de la clé
-function verifierCleSync(req: Request, res: Response, next: () => void) {
+function verifierCleSync(req: Request, res: Response, next: () => void): void {
   const cle = req.query.key || req.headers['x-sync-key'];
 
   if (cle !== SYNC_SECRET) {
-    return res.status(401).json({ erreur: 'Clé de synchronisation invalide' });
+    res.status(401).json({ erreur: 'Clé de synchronisation invalide' });
+    return;
   }
 
   next();

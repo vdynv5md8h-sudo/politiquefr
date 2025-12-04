@@ -149,7 +149,7 @@ async function trouverOuCreerGroupeSenat(code: string, libelle: string) {
 
 // ==================== SYNC DÉPUTÉS ====================
 
-export async function synchroniserDeputes(journalId: string): Promise<ResultatSync> {
+export async function synchroniserDeputes(_journalId: string): Promise<ResultatSync> {
   logInfo('Démarrage sync députés...');
 
   let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
@@ -229,7 +229,7 @@ export async function synchroniserDeputes(journalId: string): Promise<ResultatSy
 
 // ==================== SYNC SÉNATEURS ====================
 
-export async function synchroniserSenateurs(journalId: string): Promise<ResultatSync> {
+export async function synchroniserSenateurs(_journalId: string): Promise<ResultatSync> {
   logInfo('Démarrage sync sénateurs...');
 
   let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
@@ -301,7 +301,7 @@ export async function synchroniserSenateurs(journalId: string): Promise<Resultat
 
 // ==================== SYNC MAIRES ====================
 
-export async function synchroniserMaires(journalId: string): Promise<ResultatSync> {
+export async function synchroniserMaires(_journalId: string): Promise<ResultatSync> {
   logInfo('Démarrage sync maires...');
 
   let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
