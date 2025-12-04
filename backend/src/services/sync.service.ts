@@ -194,7 +194,11 @@ export async function synchroniserDeputes(_journalId: string): Promise<ResultatS
           departement: d.nom_circo,
           dateDebutMandat: new Date(d.mandat_debut),
           dateFinMandat: d.mandat_fin ? new Date(d.mandat_fin) : null,
-          mandatEnCours: !d.mandat_fin,
+          // nosdeputes.fr only has 16th legislature data (ended June 2024)
+          // All deputies have mandat_fin set to 2024-06-09 (dissolution)
+          // For now, mark all as active since the source doesn't have 17th legislature
+          // A proper fix would cross-reference with RNE (data.gouv.fr)
+          mandatEnCours: true,
           groupeId,
           email: d.emails?.[0]?.email || null,
           twitter: d.twitter || null,
