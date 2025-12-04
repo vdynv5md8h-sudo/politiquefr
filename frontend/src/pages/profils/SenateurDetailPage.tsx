@@ -8,6 +8,11 @@ import {
   EnvelopeIcon,
   GlobeAltIcon,
   ArrowTopRightOnSquareIcon,
+  UserIcon,
+  BriefcaseIcon,
+  MapPinIcon,
+  CalendarIcon,
+  BuildingLibraryIcon,
 } from '@heroicons/react/24/outline';
 
 export default function SenateurDetailPage() {
@@ -55,23 +60,35 @@ export default function SenateurDetailPage() {
   // Determine renewal year based on series
   const anneeRenouvellement = senateur.serieSenat === 1 ? 2023 : 2026;
 
+  // Calcul de l'âge
+  const calculateAge = (birthDate: string) => {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <>
       <Helmet>
-        <title>{senateur.prenom} {senateur.nom} - Senateur - PolitiqueFR</title>
+        <title>{senateur.prenom} {senateur.nom} - Sénateur{senateur.civilite === 'Mme' ? 'rice' : ''} - PolitiqueFR</title>
         <meta
           name="description"
-          content={`Profil de ${senateur.civilite} ${senateur.prenom} ${senateur.nom}, senateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}. Serie ${senateur.serieSenat}, renouvellement ${anneeRenouvellement}.`}
+          content={`Profil de ${senateur.civilite} ${senateur.prenom} ${senateur.nom}, sénateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}. Série ${senateur.serieSenat}, renouvellement ${anneeRenouvellement}.`}
         />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'Person',
             name: `${senateur.prenom} ${senateur.nom}`,
-            jobTitle: `Senateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}`,
+            jobTitle: `Sénateur${senateur.civilite === 'Mme' ? 'rice' : ''} de ${senateur.departement}`,
             worksFor: {
               '@type': 'Organization',
-              name: 'Senat',
+              name: 'Sénat',
               url: 'https://www.senat.fr',
             },
             memberOf: senateur.groupe ? {
@@ -81,6 +98,8 @@ export default function SenateurDetailPage() {
             image: senateur.photoUrl || undefined,
             email: senateur.email || undefined,
             url: senateur.siteWeb || senateur.urlSenat || undefined,
+            birthDate: senateur.dateNaissance || undefined,
+            birthPlace: senateur.lieuNaissance || undefined,
           })}
         </script>
       </Helmet>
@@ -103,15 +122,15 @@ export default function SenateurDetailPage() {
                   className="w-32 h-32 rounded-xl object-cover"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-gray-400">
+                <div className="w-32 h-32 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-purple-600 dark:text-purple-300">
                     {senateur.prenom[0]}{senateur.nom[0]}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Informations */}
+            {/* Informations principales */}
             <div className="flex-grow">
               <div className="flex flex-wrap items-center gap-3 mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -129,43 +148,42 @@ export default function SenateurDetailPage() {
                     {senateur.groupe.acronyme}
                   </Link>
                 )}
+                {!senateur.mandatEnCours && (
+                  <span className="badge bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-sm">
+                    Mandat terminé
+                  </span>
+                )}
               </div>
 
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
-                Sénateur{senateur.civilite === 'Mme' ? 'rice' : ''} de {senateur.departement} ({senateur.codeDepartement})
+                <BuildingLibraryIcon className="h-5 w-5 inline mr-1" />
+                Sénateur{senateur.civilite === 'Mme' ? 'rice' : ''} de <strong>{senateur.departement}</strong> ({senateur.codeDepartement})
               </p>
 
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Série {senateur.serieSenat} - Renouvellement {anneeRenouvellement}
               </p>
 
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Début du mandat :</span>{' '}
-                  <span className="font-medium text-gray-900 dark:text-white">
+              <div className="flex flex-wrap gap-4 text-sm mb-4">
+                <div className="flex items-center">
+                  <CalendarIcon className="h-4 w-4 mr-1 text-gray-400" />
+                  <span className="text-gray-500">Mandat depuis :</span>{' '}
+                  <span className="font-medium text-gray-900 dark:text-white ml-1">
                     {new Date(senateur.dateDebutMandat).toLocaleDateString('fr-FR')}
                   </span>
                 </div>
                 {senateur.typeElection && (
-                  <div>
+                  <div className="flex items-center">
                     <span className="text-gray-500">Type :</span>{' '}
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-gray-900 dark:text-white ml-1">
                       {senateur.typeElection}
-                    </span>
-                  </div>
-                )}
-                {senateur.profession && (
-                  <div>
-                    <span className="text-gray-500">Profession :</span>{' '}
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {senateur.profession}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Liens */}
-              <div className="flex flex-wrap gap-3 mt-4">
+              {/* Liens de contact */}
+              <div className="flex flex-wrap gap-3">
                 {senateur.email && (
                   <a
                     href={`mailto:${senateur.email}`}
@@ -213,6 +231,9 @@ export default function SenateurDetailPage() {
         </div>
 
         {/* Statistiques d'activité */}
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          Activité parlementaire
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             titre="Présence en commission"
@@ -250,8 +271,108 @@ export default function SenateurDetailPage() {
           </div>
         </div>
 
-        {/* Placeholder pour les votes et informations complémentaires */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Informations détaillées */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Informations personnelles */}
+          <div className="card p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <UserIcon className="h-5 w-5 mr-2" />
+              Informations personnelles
+            </h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Civilité</span>
+                <span className="font-medium text-gray-900 dark:text-white">{senateur.civilite}</span>
+              </div>
+              {senateur.dateNaissance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Date de naissance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {new Date(senateur.dateNaissance).toLocaleDateString('fr-FR')} ({calculateAge(senateur.dateNaissance)} ans)
+                  </span>
+                </div>
+              )}
+              {senateur.lieuNaissance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Lieu de naissance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{senateur.lieuNaissance}</span>
+                </div>
+              )}
+              {senateur.profession && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Profession</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{senateur.profession}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Matricule</span>
+                <span className="font-medium text-gray-900 dark:text-white">{senateur.matricule}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mandat */}
+          <div className="card p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <BriefcaseIcon className="h-5 w-5 mr-2" />
+              Mandat
+            </h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Département</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {senateur.departement} ({senateur.codeDepartement})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Série</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  Série {senateur.serieSenat} (renouvellement {anneeRenouvellement})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Début du mandat</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {new Date(senateur.dateDebutMandat).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+              {senateur.dateFinMandat && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Fin du mandat</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {new Date(senateur.dateFinMandat).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+              )}
+              {senateur.typeElection && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Type d'élection</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{senateur.typeElection}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Statut</span>
+                <span className={`font-medium ${senateur.mandatEnCours ? 'text-green-600' : 'text-red-600'}`}>
+                  {senateur.mandatEnCours ? 'En cours' : 'Terminé'}
+                </span>
+              </div>
+              {senateur.groupe && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Groupe politique</span>
+                  <Link
+                    to={`/groupes/${senateur.groupe.id}`}
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    {senateur.groupe.nom}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Votes et informations complémentaires */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="card p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Derniers votes
@@ -302,6 +423,50 @@ export default function SenateurDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Contact complet */}
+        {(senateur.email || senateur.siteWeb || senateur.twitter || senateur.urlSenat) && (
+          <div className="card p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <MapPinIcon className="h-5 w-5 mr-2" />
+              Contact
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {senateur.email && (
+                <div className="flex items-center">
+                  <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={`mailto:${senateur.email}`} className="text-blue-600 hover:underline">
+                    {senateur.email}
+                  </a>
+                </div>
+              )}
+              {senateur.siteWeb && (
+                <div className="flex items-center">
+                  <GlobeAltIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={senateur.siteWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
+                    {senateur.siteWeb.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+              {senateur.twitter && (
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-2 font-bold">X</span>
+                  <a href={`https://twitter.com/${senateur.twitter}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    @{senateur.twitter}
+                  </a>
+                </div>
+              )}
+              {senateur.urlSenat && (
+                <div className="flex items-center">
+                  <ArrowTopRightOnSquareIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={senateur.urlSenat} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    Fiche sur senat.fr
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sources */}
         <div className="mt-8 text-center text-xs text-gray-400">

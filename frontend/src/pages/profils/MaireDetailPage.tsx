@@ -47,6 +47,18 @@ export default function MaireDetailPage() {
     );
   }
 
+  // Calcul de l'âge
+  const calculateAge = (birthDate: string) => {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <>
       <Helmet>
@@ -75,6 +87,8 @@ export default function MaireDetailPage() {
             email: maire.email || undefined,
             telephone: maire.telephone || undefined,
             url: maire.siteWeb || undefined,
+            birthDate: maire.dateNaissance || undefined,
+            birthPlace: maire.lieuNaissance || undefined,
           })}
         </script>
       </Helmet>
@@ -97,8 +111,8 @@ export default function MaireDetailPage() {
                   className="w-32 h-32 rounded-xl object-cover"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-blue-600 dark:text-blue-300">
+                <div className="w-32 h-32 rounded-xl bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-green-600 dark:text-green-300">
                     {maire.prenom?.[0]}{maire.nom?.[0]}
                   </span>
                 </div>
@@ -205,6 +219,12 @@ export default function MaireDetailPage() {
                   <span className="font-medium text-gray-900 dark:text-white">{maire.libelleRegion}</span>
                 </div>
               )}
+              {maire.codeRegion && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Code région</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{maire.codeRegion}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -223,7 +243,7 @@ export default function MaireDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-500">Date de naissance</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {new Date(maire.dateNaissance).toLocaleDateString('fr-FR')}
+                    {new Date(maire.dateNaissance).toLocaleDateString('fr-FR')} ({calculateAge(maire.dateNaissance)} ans)
                   </span>
                 </div>
               )}
@@ -272,7 +292,71 @@ export default function MaireDetailPage() {
               </div>
             )}
           </div>
+          {maire.dateFinMandat && (
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Fin du mandat : {new Date(maire.dateFinMandat).toLocaleDateString('fr-FR')}
+            </div>
+          )}
         </div>
+
+        {/* Contact complet */}
+        {(maire.email || maire.telephone || maire.siteWeb) && (
+          <div className="card p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <MapPinIcon className="h-5 w-5 mr-2" />
+              Contact
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              {maire.email && (
+                <div className="flex items-center">
+                  <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={`mailto:${maire.email}`} className="text-blue-600 hover:underline">
+                    {maire.email}
+                  </a>
+                </div>
+              )}
+              {maire.telephone && (
+                <div className="flex items-center">
+                  <PhoneIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={`tel:${maire.telephone}`} className="text-blue-600 hover:underline">
+                    {maire.telephone}
+                  </a>
+                </div>
+              )}
+              {maire.siteWeb && (
+                <div className="flex items-center">
+                  <GlobeAltIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={maire.siteWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
+                    {maire.siteWeb.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Nuance politique détail */}
+        {(maire.codeNuance || maire.libelleNuance) && (
+          <div className="card p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Nuance politique
+            </h2>
+            <div className="space-y-3 text-sm">
+              {maire.codeNuance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Code nuance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{maire.codeNuance}</span>
+                </div>
+              )}
+              {maire.libelleNuance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Libellé nuance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{maire.libelleNuance}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sources */}
         <div className="mt-8 text-center text-xs text-gray-400">

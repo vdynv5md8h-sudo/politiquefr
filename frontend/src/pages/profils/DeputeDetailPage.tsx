@@ -12,6 +12,11 @@ import {
   XMarkIcon,
   MinusIcon,
   NoSymbolIcon,
+  UserIcon,
+  BriefcaseIcon,
+  MapPinIcon,
+  CalendarIcon,
+  BuildingLibraryIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DeputeDetailPage() {
@@ -65,23 +70,35 @@ export default function DeputeDetailPage() {
     );
   }
 
+  // Calcul de l'âge
+  const calculateAge = (birthDate: string) => {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <>
       <Helmet>
-        <title>{depute.prenom} {depute.nom} - Depute - PolitiqueFR</title>
+        <title>{depute.prenom} {depute.nom} - Député{depute.civilite === 'Mme' ? 'e' : ''} - PolitiqueFR</title>
         <meta
           name="description"
-          content={`Profil de ${depute.civilite} ${depute.prenom} ${depute.nom}, depute${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}. Activite parlementaire, votes, et statistiques.`}
+          content={`Profil de ${depute.civilite} ${depute.prenom} ${depute.nom}, député${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}. Activité parlementaire, votes, et statistiques.`}
         />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'Person',
             name: `${depute.prenom} ${depute.nom}`,
-            jobTitle: `Depute${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}`,
+            jobTitle: `Député${depute.civilite === 'Mme' ? 'e' : ''} de ${depute.departement}`,
             worksFor: {
               '@type': 'Organization',
-              name: 'Assemblee nationale',
+              name: 'Assemblée nationale',
               url: 'https://www.assemblee-nationale.fr',
             },
             memberOf: depute.groupe ? {
@@ -91,11 +108,18 @@ export default function DeputeDetailPage() {
             image: depute.photoUrl || undefined,
             email: depute.email || undefined,
             url: depute.siteWeb || undefined,
+            birthDate: depute.dateNaissance || undefined,
+            birthPlace: depute.lieuNaissance || undefined,
           })}
         </script>
       </Helmet>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Lien retour */}
+        <Link to="/deputes" className="link mb-4 inline-block">
+          ← Retour à la liste des députés
+        </Link>
+
         {/* En-tête du profil */}
         <div className="card p-6 mb-8">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -108,15 +132,15 @@ export default function DeputeDetailPage() {
                   className="w-32 h-32 rounded-xl object-cover"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-gray-400">
+                <div className="w-32 h-32 rounded-xl bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-blue-600 dark:text-blue-300">
                     {depute.prenom[0]}{depute.nom[0]}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Informations */}
+            {/* Informations principales */}
             <div className="flex-grow">
               <div className="flex flex-wrap items-center gap-3 mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -134,37 +158,36 @@ export default function DeputeDetailPage() {
                     {depute.groupe.acronyme}
                   </Link>
                 )}
-              </div>
-
-              <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                Député{depute.civilite === 'Mme' ? 'e' : ''} de {depute.departement} ({depute.numeroCirconscription}e circonscription)
-              </p>
-
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Début du mandat :</span>{' '}
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {new Date(depute.dateDebutMandat).toLocaleDateString('fr-FR')}
+                {!depute.mandatEnCours && (
+                  <span className="badge bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-sm">
+                    Mandat terminé
                   </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Législature :</span>{' '}
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {depute.legislature}e
-                  </span>
-                </div>
-                {depute.profession && (
-                  <div>
-                    <span className="text-gray-500">Profession :</span>{' '}
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {depute.profession}
-                    </span>
-                  </div>
                 )}
               </div>
 
-              {/* Liens */}
-              <div className="flex flex-wrap gap-3 mt-4">
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+                <BuildingLibraryIcon className="h-5 w-5 inline mr-1" />
+                Député{depute.civilite === 'Mme' ? 'e' : ''} de <strong>{depute.departement}</strong> ({depute.numeroCirconscription}<sup>e</sup> circonscription)
+              </p>
+
+              <div className="flex flex-wrap gap-4 text-sm mb-4">
+                <div className="flex items-center">
+                  <CalendarIcon className="h-4 w-4 mr-1 text-gray-400" />
+                  <span className="text-gray-500">Mandat depuis :</span>{' '}
+                  <span className="font-medium text-gray-900 dark:text-white ml-1">
+                    {new Date(depute.dateDebutMandat).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-gray-500">Législature :</span>{' '}
+                  <span className="font-medium text-gray-900 dark:text-white ml-1">
+                    {depute.legislature}<sup>e</sup>
+                  </span>
+                </div>
+              </div>
+
+              {/* Liens de contact */}
+              <div className="flex flex-wrap gap-3">
                 {depute.email && (
                   <a
                     href={`mailto:${depute.email}`}
@@ -185,6 +208,16 @@ export default function DeputeDetailPage() {
                     Site web
                   </a>
                 )}
+                {depute.twitter && (
+                  <a
+                    href={`https://twitter.com/${depute.twitter}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-outline text-sm"
+                  >
+                    @{depute.twitter}
+                  </a>
+                )}
                 {depute.urlNosdeputes && (
                   <a
                     href={depute.urlNosdeputes}
@@ -196,12 +229,26 @@ export default function DeputeDetailPage() {
                     NosDéputés.fr
                   </a>
                 )}
+                {depute.urlAssemblee && (
+                  <a
+                    href={depute.urlAssemblee}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-outline text-sm"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-1" />
+                    Assemblée nationale
+                  </a>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Statistiques d'activité */}
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          Activité parlementaire
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             titre="Présence en hémicycle"
@@ -229,7 +276,7 @@ export default function DeputeDetailPage() {
         </div>
 
         {/* Autres statistiques */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{depute.questionsEcrites || 0}</div>
             <div className="text-sm text-gray-500">Questions écrites</div>
@@ -246,10 +293,124 @@ export default function DeputeDetailPage() {
             <div className="text-2xl font-bold text-orange-600">{depute.rapports || 0}</div>
             <div className="text-sm text-gray-500">Rapports</div>
           </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-indigo-600">{depute.amendementsProposes || 0}</div>
+            <div className="text-sm text-gray-500">Amendements proposés</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-teal-600">{depute.amendementsAdoptes || 0}</div>
+            <div className="text-sm text-gray-500">Amendements adoptés</div>
+          </div>
+        </div>
+
+        {/* Informations détaillées */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Informations personnelles */}
+          <div className="card p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <UserIcon className="h-5 w-5 mr-2" />
+              Informations personnelles
+            </h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Civilité</span>
+                <span className="font-medium text-gray-900 dark:text-white">{depute.civilite}</span>
+              </div>
+              {depute.dateNaissance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Date de naissance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {new Date(depute.dateNaissance).toLocaleDateString('fr-FR')} ({calculateAge(depute.dateNaissance)} ans)
+                  </span>
+                </div>
+              )}
+              {depute.lieuNaissance && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Lieu de naissance</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{depute.lieuNaissance}</span>
+                </div>
+              )}
+              {depute.profession && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Profession</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{depute.profession}</span>
+                </div>
+              )}
+              {depute.nomUsuel && depute.nomUsuel !== depute.nom && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Nom d'usage</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{depute.nomUsuel}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mandat */}
+          <div className="card p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <BriefcaseIcon className="h-5 w-5 mr-2" />
+              Mandat
+            </h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Circonscription</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {depute.numeroCirconscription}<sup>e</sup> de {depute.departement}
+                </span>
+              </div>
+              {depute.codeDepartement && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Code département</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{depute.codeDepartement}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Législature</span>
+                <span className="font-medium text-gray-900 dark:text-white">{depute.legislature}<sup>e</sup></span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Début du mandat</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {new Date(depute.dateDebutMandat).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+              {depute.dateFinMandat && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Fin du mandat</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {new Date(depute.dateFinMandat).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+              )}
+              {depute.motifFin && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Motif de fin</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{depute.motifFin}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Statut</span>
+                <span className={`font-medium ${depute.mandatEnCours ? 'text-green-600' : 'text-red-600'}`}>
+                  {depute.mandatEnCours ? 'En cours' : 'Terminé'}
+                </span>
+              </div>
+              {depute.groupe && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Groupe politique</span>
+                  <Link
+                    to={`/groupes/${depute.groupe.id}`}
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    {depute.groupe.nom}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Votes et statistiques */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="card p-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Derniers votes
@@ -307,6 +468,50 @@ export default function DeputeDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Contact complet */}
+        {(depute.email || depute.siteWeb || depute.twitter || depute.facebook) && (
+          <div className="card p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <MapPinIcon className="h-5 w-5 mr-2" />
+              Contact
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {depute.email && (
+                <div className="flex items-center">
+                  <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={`mailto:${depute.email}`} className="text-blue-600 hover:underline">
+                    {depute.email}
+                  </a>
+                </div>
+              )}
+              {depute.siteWeb && (
+                <div className="flex items-center">
+                  <GlobeAltIcon className="h-5 w-5 mr-2 text-gray-400" />
+                  <a href={depute.siteWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
+                    {depute.siteWeb.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+              {depute.twitter && (
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-2 font-bold">X</span>
+                  <a href={`https://twitter.com/${depute.twitter}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    @{depute.twitter}
+                  </a>
+                </div>
+              )}
+              {depute.facebook && (
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-2 font-bold">f</span>
+                  <a href={`https://facebook.com/${depute.facebook}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {depute.facebook}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sources */}
         <div className="mt-8 text-center text-xs text-gray-400">
