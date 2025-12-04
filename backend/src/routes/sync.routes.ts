@@ -197,4 +197,26 @@ router.post('/tout', verifierCleSync, asyncHandler(async (_req: Request, res: Re
   });
 }));
 
+// POST /api/v1/sync/fix-deputes-mandat?key=xxx - Corriger mandatEnCours pour tous les députés
+// Workaround: nosdeputes.fr n'a que les données de la 16e législature (terminée en juin 2024)
+router.post('/fix-deputes-mandat', verifierCleSync, asyncHandler(async (_req: Request, res: Response) => {
+  logInfo('Fix mandatEnCours pour tous les députés');
+
+  const result = await prisma.depute.updateMany({
+    data: { mandatEnCours: true },
+  });
+
+  // Mettre à jour les compteurs de membres pour chaque groupe
+  const groupes = await prisma.groupePolitique.findMany({ where: { chambre: 'ASSEMBLEE' } });
+  for (const groupe of groupes) {
+    const count = await prisma.depute.count({ where: { groupeId: groupe.id, mandatEnCours: true } });
+    await prisma.groupePolitique.update({ where: { id: groupe.id }, data: { nombreMembres: count } });
+  }
+
+  return reponseSucces(res, {
+    message: 'Tous les députés sont maintenant marqués comme mandatEnCours=true',
+    deputesMisAJour: result.count,
+  });
+}));
+
 export default router;
