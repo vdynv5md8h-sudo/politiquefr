@@ -45,18 +45,29 @@ interface DeputeNosdeputes {
     sexe: string;
     date_naissance: string;
     lieu_naissance: string;
-    profession: string;
+    profession: string | number;
     groupe_sigle: string;
     groupe: { acronyme: string; organisme: string };
     mandat_debut: string;
     mandat_fin: string | null;
     num_circo: number;
     nom_circo: string;
+    num_deptmt: string;
     url_an: string;
     url_nosdeputes: string;
     emails: { email: string }[];
     sites_web: { site: string }[];
     twitter: string;
+    // Activity stats from synthese/data/json
+    commission_presences?: number;
+    hemicycle_interventions?: number;
+    amendements_proposes?: number;
+    amendements_adoptes?: number;
+    questions_ecrites?: number;
+    questions_orales?: number;
+    propositions_ecrites?: number;
+    rapports?: number;
+    nb_mois?: number;
   };
 }
 
@@ -155,9 +166,8 @@ export async function synchroniserDeputes(_journalId: string): Promise<ResultatS
   let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
 
   try {
-    // Note: /deputes/enmandat/json peut être vide si l'Assemblée est dissoute
-    // On utilise /deputes/json qui contient tous les députés (y compris anciens)
-    const response = await axios.get('https://www.nosdeputes.fr/deputes/json', {
+    // Use /synthese/data/json which contains all deputy data INCLUDING activity stats
+    const response = await axios.get('https://www.nosdeputes.fr/synthese/data/json', {
       headers: { 'User-Agent': 'PolitiqueFR/1.0' },
       timeout: 60000,
     });
@@ -167,7 +177,7 @@ export async function synchroniserDeputes(_journalId: string): Promise<ResultatS
     // Filtrer pour ne garder que les députés de la dernière législature (mandat récent)
     const deputes = tousDeputes.filter(item => {
       const d = item.depute;
-      // Garder ceux dont le mandat a commencé après 2022 (XVIIe législature)
+      // Garder ceux dont le mandat a commencé après 2022 (XVIe législature)
       return d.mandat_debut && new Date(d.mandat_debut) >= new Date('2022-06-01');
     });
 
@@ -181,25 +191,44 @@ export async function synchroniserDeputes(_journalId: string): Promise<ResultatS
           ? await trouverOuCreerGroupeAssemblee(d.groupe_sigle, d.groupe?.organisme)
           : null;
 
+        // Calculate percentage-based presence from available data
+        const nbMois = d.nb_mois || 1;
+        // Commission presence: estimate based on average expected presences per month (around 8)
+        const presenceCommissionPct = d.commission_presences
+          ? Math.min(100, Math.round((d.commission_presences / (nbMois * 8)) * 100))
+          : null;
+        // Hemicycle participation: estimate based on interventions per month
+        const presenceHemicyclePct = d.hemicycle_interventions
+          ? Math.min(100, Math.round((d.hemicycle_interventions / nbMois) * 10))
+          : null;
+
         const donnees = {
           slug: d.slug,
-          civilite: d.sexe === 'F' ? 'Mme' : 'M.',
+          civilite: d.sexe === 'H' ? 'M.' : 'Mme',
           prenom: d.prenom,
           nom: d.nom_de_famille,
           dateNaissance: d.date_naissance ? new Date(d.date_naissance) : null,
           lieuNaissance: d.lieu_naissance || null,
-          profession: d.profession || null,
-          legislature: 17,
+          profession: typeof d.profession === 'string' ? d.profession : null,
+          legislature: 16,
           numeroCirconscription: d.num_circo,
           departement: d.nom_circo,
+          codeDepartement: d.num_deptmt || null,
           dateDebutMandat: new Date(d.mandat_debut),
           dateFinMandat: d.mandat_fin ? new Date(d.mandat_fin) : null,
-          // nosdeputes.fr only has 16th legislature data (ended June 2024)
-          // All deputies have mandat_fin set to 2024-06-09 (dissolution)
-          // For now, mark all as active since the source doesn't have 17th legislature
-          // A proper fix would cross-reference with RNE (data.gouv.fr)
           mandatEnCours: true,
           groupeId,
+          // Activity statistics
+          presenceCommission: presenceCommissionPct,
+          presenceHemicycle: presenceHemicyclePct,
+          questionsEcrites: d.questions_ecrites || 0,
+          questionsOrales: d.questions_orales || 0,
+          propositionsLoi: d.propositions_ecrites || 0,
+          rapports: d.rapports || 0,
+          interventions: d.hemicycle_interventions || 0,
+          amendementsProposes: d.amendements_proposes || 0,
+          amendementsAdoptes: d.amendements_adoptes || 0,
+          // Contact info
           email: d.emails?.[0]?.email || null,
           twitter: d.twitter || null,
           siteWeb: d.sites_web?.[0]?.site || null,
