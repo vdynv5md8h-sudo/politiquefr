@@ -18,6 +18,7 @@ const LoiDetailPage = lazy(() => import('./pages/lois/LoiDetailPage'));
 const ActualitesPage = lazy(() => import('./pages/actualites/ActualitesPage'));
 const AffairesJudiciairesPage = lazy(() => import('./pages/actualites/AffairesJudiciairesPage'));
 const TravauxParlementairesPage = lazy(() => import('./pages/travaux/TravauxParlementairesPage'));
+const TravauxDetailPage = lazy(() => import('./pages/travaux/TravauxDetailPage'));
 const RecherchePage = lazy(() => import('./pages/RecherchePage'));
 const APropos = lazy(() => import('./pages/APropos'));
 const MentionsLegales = lazy(() => import('./pages/MentionsLegales'));
@@ -53,6 +54,7 @@ function App() {
 
           {/* Travaux parlementaires */}
           <Route path="travaux-parlementaires" element={<TravauxParlementairesPage />} />
+          <Route path="travaux-parlementaires/:id" element={<TravauxDetailPage />} />
 
           {/* Actualités */}
           <Route path="actualites" element={<ActualitesPage />} />
