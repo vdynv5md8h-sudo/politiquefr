@@ -42,7 +42,10 @@ interface DossierLegislatifAN {
 interface ActeLegislatif {
   uid: string;
   codeActe: string;
-  libelleActe?: string;
+  libelleActe?: {
+    nomCanonique?: string;
+    libelleCourt?: string;
+  } | string;
   dateActe?: string;
   texteAdopte?: {
     texte?: TexteAN;
@@ -50,8 +53,11 @@ interface ActeLegislatif {
   texteAssocie?: {
     typeTexte?: string;
     refTexte?: string;
-  };
+  } | string;
   organeRef?: string;
+  actesLegislatifs?: {
+    acteLegislatif?: ActeLegislatif | ActeLegislatif[];
+  };
 }
 
 interface TexteAN {
@@ -202,19 +208,31 @@ export async function synchroniserTravauxParlementaires(
     const zip = new AdmZip(zipPath);
     zip.extractAllTo(tempDir, true);
 
-    // Chercher le fichier JSON principal
-    const jsonFiles = fs.readdirSync(tempDir).filter(f => f.endsWith('.json'));
-    if (jsonFiles.length === 0) {
-      // Chercher dans un sous-dossier
-      const subDirs = fs.readdirSync(tempDir).filter(f =>
-        fs.statSync(path.join(tempDir, f)).isDirectory()
-      );
-      for (const dir of subDirs) {
-        const subFiles = fs.readdirSync(path.join(tempDir, dir)).filter(f => f.endsWith('.json'));
-        if (subFiles.length > 0) {
-          jsonFiles.push(...subFiles.map(f => path.join(dir, f)));
+    // Chercher les fichiers JSON dans json/dossierParlementaire/
+    const dossierParlementaireDir = path.join(tempDir, 'json', 'dossierParlementaire');
+    let jsonFiles: string[] = [];
+
+    if (fs.existsSync(dossierParlementaireDir)) {
+      jsonFiles = fs.readdirSync(dossierParlementaireDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => path.join('json', 'dossierParlementaire', f));
+    } else {
+      // Fallback: chercher récursivement
+      const findJsonFiles = (dir: string, baseDir: string): string[] => {
+        const files: string[] = [];
+        const entries = fs.readdirSync(dir);
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry);
+          const relativePath = path.relative(baseDir, fullPath);
+          if (fs.statSync(fullPath).isDirectory()) {
+            files.push(...findJsonFiles(fullPath, baseDir));
+          } else if (entry.endsWith('.json')) {
+            files.push(relativePath);
+          }
         }
-      }
+        return files;
+      };
+      jsonFiles = findJsonFiles(tempDir, tempDir);
     }
 
     logInfo(`[${journalId}] ${jsonFiles.length} fichiers JSON trouvés`);
@@ -224,112 +242,115 @@ export async function synchroniserTravauxParlementaires(
         const content = fs.readFileSync(path.join(tempDir, jsonFile), 'utf-8');
         const data = JSON.parse(content);
 
-        // Structure peut être { export: { dossierParlementaire: {...} } }
-        // ou directement { dossierParlementaire: {...} }
-        const dossiers = data.export?.dossiersLegislatifs?.dossier ||
-                         data.dossiersLegislatifs?.dossier ||
-                         data.dossier ||
-                         [];
+        // Structure: chaque fichier contient { dossierParlementaire: {...} }
+        const dossier = data.dossierParlementaire;
 
-        const dossiersArray = Array.isArray(dossiers) ? dossiers : [dossiers];
+        if (!dossier?.uid) {
+          logInfo(`[${journalId}] Fichier sans uid: ${jsonFile}`);
+          continue;
+        }
 
-        for (const dossierWrapper of dossiersArray) {
-          try {
-            traites++;
-            const dossier = dossierWrapper.dossierParlementaire || dossierWrapper;
+        // Extraire le titre depuis titreDossier.titre
+        const titre = dossier.titreDossier?.titre || dossier.titre || 'Sans titre';
+        const titreChemin = dossier.titreDossier?.titreChemin || dossier.titreChemin;
 
-            if (!dossier?.uid) continue;
+        // Extraire les actes législatifs (peuvent être imbriqués)
+        let actes: ActeLegislatif[] = [];
+        if (dossier.actesLegislatifs?.acteLegislatif) {
+          const acteLegislatif = dossier.actesLegislatifs.acteLegislatif;
+          actes = Array.isArray(acteLegislatif) ? acteLegislatif : [acteLegislatif];
+        }
 
-            // Extraire les actes législatifs
-            let actes: ActeLegislatif[] = [];
-            if (dossier.actesLegislatifs?.acteLegislatif) {
-              actes = Array.isArray(dossier.actesLegislatifs.acteLegislatif)
-                ? dossier.actesLegislatifs.acteLegislatif
-                : [dossier.actesLegislatifs.acteLegislatif];
+        // Trouver le premier texte déposé
+        let dateDepot: Date | null = null;
+        let urlDocument: string | null = null;
+        let urlDossier: string | null = null;
+
+        // Fonction pour parcourir les actes imbriqués
+        const extraireDates = (acte: ActeLegislatif) => {
+          if (acte.texteAdopte?.texte) {
+            const texte = acte.texteAdopte.texte;
+            if (!dateDepot && texte.dateDepot) {
+              dateDepot = parseDate(texte.dateDepot);
             }
-
-            // Trouver le premier texte déposé
-            let dateDepot: Date | null = null;
-            let urlDocument: string | null = null;
-            let urlDossier: string | null = null;
-
-            for (const acte of actes) {
-              if (acte.texteAdopte?.texte) {
-                const texte = acte.texteAdopte.texte;
-                if (!dateDepot && texte.dateDepot) {
-                  dateDepot = parseDate(texte.dateDepot);
-                }
-                if (!urlDocument && texte.urlDocument) {
-                  urlDocument = texte.urlDocument;
-                }
-                if (!urlDossier && texte.urlDossier) {
-                  urlDossier = texte.urlDossier;
-                }
-              }
-              if (!dateDepot && acte.dateActe) {
-                dateDepot = parseDate(acte.dateActe);
-              }
+            if (!urlDocument && texte.urlDocument) {
+              urlDocument = texte.urlDocument;
             }
-
-            const typeDocument = determinerTypeDocument(
-              dossier.titre,
-              dossier.procedureParlementaire?.libelle
-            );
-
-            // Filtrer par type si spécifié
-            if (options.types && options.types.length > 0) {
-              if (!options.types.includes(typeDocument)) continue;
+            if (!urlDossier && texte.urlDossier) {
+              urlDossier = texte.urlDossier;
             }
-
-            const travauxData = {
-              uid: dossier.uid,
-              typeDocument,
-              titre: dossier.titre || 'Sans titre',
-              titreOfficiel: dossier.titrePrincipal?.titrePrincipal,
-              titreCourt: dossier.titreChemin,
-              legislature: parseInt(dossier.legislature) || legislature,
-              dateDepot: dateDepot || new Date(),
-              dateExamen: actes.length > 0 ? parseDate(actes[actes.length - 1].dateActe) : null,
-              chambreOrigine: 'ASSEMBLEE' as Chambre,
-              statutExamen: determinerStatut(actes),
-              urlDocumentPdf: urlDocument,
-              urlDossierAN: urlDossier || `https://www.assemblee-nationale.fr/dyn/dossiers/${dossier.uid}`,
-              auteurs: extraireAuteurs(dossier.initiateur),
-            };
-
-            // Upsert
-            const existing = await prisma.travauxParlementaire.findUnique({
-              where: { uid: dossier.uid }
-            });
-
-            if (existing) {
-              await prisma.travauxParlementaire.update({
-                where: { uid: dossier.uid },
-                data: travauxData,
-              });
-              misAJour++;
-            } else {
-              await prisma.travauxParlementaire.create({
-                data: travauxData,
-              });
-              crees++;
-            }
-
-            // Limite optionnelle
-            if (options.limite && (crees + misAJour) >= options.limite) {
-              logInfo(`[${journalId}] Limite atteinte: ${options.limite}`);
-              break;
-            }
-
-          } catch (e) {
-            erreurs++;
-            logError(`[${journalId}] Erreur traitement dossier:`, e);
           }
+          if (!dateDepot && acte.dateActe) {
+            dateDepot = parseDate(acte.dateActe);
+          }
+          // Parcourir les actes imbriqués
+          if (acte.actesLegislatifs?.acteLegislatif) {
+            const subActes = Array.isArray(acte.actesLegislatifs.acteLegislatif)
+              ? acte.actesLegislatifs.acteLegislatif
+              : [acte.actesLegislatifs.acteLegislatif];
+            for (const subActe of subActes) {
+              extraireDates(subActe as ActeLegislatif);
+            }
+          }
+        };
+
+        for (const acte of actes) {
+          extraireDates(acte);
+        }
+
+        const typeDocument = determinerTypeDocument(
+          titre,
+          dossier.procedureParlementaire?.libelle
+        );
+
+        // Filtrer par type si spécifié
+        if (options.types && options.types.length > 0) {
+          if (!options.types.includes(typeDocument)) continue;
+        }
+
+        const travauxData = {
+          uid: dossier.uid,
+          typeDocument,
+          titre,
+          titreOfficiel: dossier.titrePrincipal?.titrePrincipal,
+          titreCourt: titreChemin,
+          legislature: parseInt(dossier.legislature) || legislature,
+          dateDepot: dateDepot || new Date(),
+          dateExamen: actes.length > 0 ? parseDate(actes[actes.length - 1]?.dateActe) : null,
+          chambreOrigine: 'ASSEMBLEE' as Chambre,
+          statutExamen: determinerStatut(actes),
+          urlDocumentPdf: urlDocument,
+          urlDossierAN: urlDossier || `https://www.assemblee-nationale.fr/dyn/dossiers/${dossier.uid}`,
+          auteurs: extraireAuteurs(dossier.initiateur),
+        };
+
+        // Upsert
+        const existing = await prisma.travauxParlementaire.findUnique({
+          where: { uid: dossier.uid }
+        });
+
+        if (existing) {
+          await prisma.travauxParlementaire.update({
+            where: { uid: dossier.uid },
+            data: travauxData,
+          });
+          misAJour++;
+        } else {
+          await prisma.travauxParlementaire.create({
+            data: travauxData,
+          });
+          crees++;
+        }
+
+        // Limite optionnelle
+        if (options.limite && (crees + misAJour) >= options.limite) {
+          logInfo(`[${journalId}] Limite atteinte: ${options.limite}`);
+          break;
         }
 
       } catch (e) {
         erreurs++;
-        logError(`[${journalId}] Erreur lecture ${jsonFile}:`, e);
+        logError(`[${journalId}] Erreur traitement dossier ${jsonFile}:`, e);
       }
     }
 
