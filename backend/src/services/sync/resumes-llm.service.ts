@@ -1,8 +1,9 @@
 /**
- * Service de génération de résumés via Claude API
+ * Service de génération de résumés via Mistral AI API
+ * Mistral AI est une entreprise française basée à Paris
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { Mistral } from '@mistralai/mistralai';
 import * as crypto from 'crypto';
 import { prisma } from '../../config/database';
 import { logInfo, logError } from '../../utils/logger';
@@ -54,13 +55,13 @@ function computeHash(text: string): string {
   return crypto.createHash('sha256').update(text).digest('hex').substring(0, 32);
 }
 
-function getAnthropicClient(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+function getMistralClient(): Mistral | null {
+  const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
-    logError('ANTHROPIC_API_KEY non configurée');
+    logError('MISTRAL_API_KEY non configurée');
     return null;
   }
-  return new Anthropic({ apiKey });
+  return new Mistral({ apiKey });
 }
 
 // ==================== GENERATION FUNCTIONS ====================
@@ -73,10 +74,10 @@ export async function genererResumeTravaux(
   options: OptionsResume = {}
 ): Promise<{ resume: string; tokensEntree: number; tokensSortie: number } | null> {
   const typeResume = options.typeResume || 'MOYEN';
-  const client = getAnthropicClient();
+  const client = getMistralClient();
 
   if (!client) {
-    throw new Error('API Claude non configurée');
+    throw new Error('API Mistral non configurée');
   }
 
   // Récupérer le travail parlementaire
@@ -123,14 +124,16 @@ export async function genererResumeTravaux(
     }
   }
 
-  // Générer le résumé via Claude
+  // Générer le résumé via Mistral
   logInfo(`Génération résumé ${typeResume} pour ${travauxId}...`);
 
-  const message = await client.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 1024,
-    system: PROMPTS_SYSTEME[typeResume],
+  const response = await client.chat.complete({
+    model: 'mistral-large-latest',
     messages: [
+      {
+        role: 'system',
+        content: PROMPTS_SYSTEME[typeResume],
+      },
       {
         role: 'user',
         content: `Voici le texte parlementaire à résumer :\n\n${texteSource}`,
@@ -138,12 +141,10 @@ export async function genererResumeTravaux(
     ],
   });
 
-  const contenu = message.content[0].type === 'text'
-    ? message.content[0].text
-    : '';
-
-  const tokensEntree = message.usage.input_tokens;
-  const tokensSortie = message.usage.output_tokens;
+  const rawContent = response.choices?.[0]?.message?.content;
+  const contenu = typeof rawContent === 'string' ? rawContent : '';
+  const tokensEntree = response.usage?.promptTokens || 0;
+  const tokensSortie = response.usage?.completionTokens || 0;
 
   // Sauvegarder le résumé
   await prisma.resumeLLM.upsert({
@@ -155,7 +156,7 @@ export async function genererResumeTravaux(
     },
     update: {
       contenu,
-      modeleLLM: 'claude-3-5-sonnet',
+      modeleLLM: 'mistral-large',
       tokensEntree,
       tokensSortie,
       hashSource,
@@ -165,7 +166,7 @@ export async function genererResumeTravaux(
       travauxId,
       typeResume,
       contenu,
-      modeleLLM: 'claude-3-5-sonnet',
+      modeleLLM: 'mistral-large',
       tokensEntree,
       tokensSortie,
       hashSource,
@@ -183,10 +184,10 @@ export async function genererResumeCommission(
   options: OptionsResume = {}
 ): Promise<{ resume: string; tokensEntree: number; tokensSortie: number } | null> {
   const typeResume = options.typeResume || 'MOYEN';
-  const client = getAnthropicClient();
+  const client = getMistralClient();
 
   if (!client) {
-    throw new Error('API Claude non configurée');
+    throw new Error('API Mistral non configurée');
   }
 
   const commission = await prisma.commissionEnquete.findUnique({
@@ -229,11 +230,13 @@ export async function genererResumeCommission(
 
   logInfo(`Génération résumé ${typeResume} pour commission ${commissionId}...`);
 
-  const message = await client.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 1024,
-    system: PROMPTS_SYSTEME[typeResume],
+  const response = await client.chat.complete({
+    model: 'mistral-large-latest',
     messages: [
+      {
+        role: 'system',
+        content: PROMPTS_SYSTEME[typeResume],
+      },
       {
         role: 'user',
         content: `Voici les informations sur la commission d'enquête parlementaire :\n\n${texteSource}`,
@@ -241,12 +244,10 @@ export async function genererResumeCommission(
     ],
   });
 
-  const contenu = message.content[0].type === 'text'
-    ? message.content[0].text
-    : '';
-
-  const tokensEntree = message.usage.input_tokens;
-  const tokensSortie = message.usage.output_tokens;
+  const rawContent = response.choices?.[0]?.message?.content;
+  const contenu = typeof rawContent === 'string' ? rawContent : '';
+  const tokensEntree = response.usage?.promptTokens || 0;
+  const tokensSortie = response.usage?.completionTokens || 0;
 
   await prisma.resumeLLM.upsert({
     where: {
@@ -257,7 +258,7 @@ export async function genererResumeCommission(
     },
     update: {
       contenu,
-      modeleLLM: 'claude-3-5-sonnet',
+      modeleLLM: 'mistral-large',
       tokensEntree,
       tokensSortie,
       hashSource,
@@ -267,7 +268,7 @@ export async function genererResumeCommission(
       commissionEnqueteId: commissionId,
       typeResume,
       contenu,
-      modeleLLM: 'claude-3-5-sonnet',
+      modeleLLM: 'mistral-large',
       tokensEntree,
       tokensSortie,
       hashSource,
