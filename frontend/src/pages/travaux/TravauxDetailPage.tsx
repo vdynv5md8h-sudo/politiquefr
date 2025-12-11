@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { travauxApi } from '../../services/api';
 import Chargement from '../../components/common/Chargement';
 import VotingResults from '../../components/travaux/VotingResults';
-import type { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux, ResumeLLM, Loi } from '../../types';
+import type { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux, ResumeLLM, Loi, AuteurEnrichi } from '../../types';
 import {
   DocumentTextIcon,
   CalendarIcon,
@@ -12,6 +12,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ClockIcon,
   BuildingLibraryIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 
 // Labels et couleurs pour les types de documents
@@ -141,6 +142,24 @@ export default function TravauxDetailPage() {
   // Trouver le résumé moyen ou court
   const resume = travaux.resumes?.find(r => r.typeResume === 'MOYEN') ||
                  travaux.resumes?.find(r => r.typeResume === 'COURT');
+
+  // Parse author data - handles both old format (string[]) and new enriched format (AuteurEnrichi[])
+  const auteurs: AuteurEnrichi[] = travaux.auteurs ? (() => {
+    try {
+      const parsed = JSON.parse(travaux.auteurs);
+      if (Array.isArray(parsed)) {
+        // Check if it's old format (array of strings) or new format (array of objects)
+        if (parsed.length > 0 && typeof parsed[0] === 'string') {
+          // Old format: convert string IDs to AuteurEnrichi objects
+          return parsed.map((id: string) => ({ acteurRef: id }));
+        }
+        return parsed;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  })() : [];
 
   return (
     <>
@@ -425,6 +444,44 @@ export default function TravauxDetailPage() {
                 <p className="text-sm text-gray-700">
                   {travaux.commission.nomCourt || travaux.commission.nom}
                 </p>
+              </div>
+            )}
+
+            {/* Auteurs */}
+            {auteurs.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                  <UserIcon className="h-5 w-5 mr-2" />
+                  {auteurs.length === 1 ? 'Auteur' : 'Auteurs'}
+                </h2>
+                <div className="space-y-3">
+                  {auteurs.map((auteur, index) => (
+                    <div key={auteur.acteurRef || index} className="flex items-center gap-2">
+                      <div className="flex-grow">
+                        <span className="text-sm font-medium text-gray-900">
+                          {auteur.nom && auteur.prenom
+                            ? `${auteur.prenom} ${auteur.nom}`
+                            : auteur.acteurRef
+                          }
+                        </span>
+                        {index === 0 && auteurs.length > 1 && (
+                          <span className="ml-2 text-xs text-gray-500">(principal)</span>
+                        )}
+                      </div>
+                      {auteur.groupeAcronyme && (
+                        <span
+                          className="px-2 py-0.5 text-xs font-medium rounded-full"
+                          style={{
+                            backgroundColor: auteur.groupeCouleur ? `${auteur.groupeCouleur}20` : '#e5e7eb',
+                            color: auteur.groupeCouleur || '#4b5563',
+                          }}
+                        >
+                          {auteur.groupeAcronyme}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

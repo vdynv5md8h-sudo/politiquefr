@@ -78,17 +78,26 @@ export default function TravauxCard({ travaux }: TravauxCardProps) {
 
   const resumeCourt = travaux.resumes?.find(r => r.typeResume === 'COURT');
 
-  // Parse enriched author data
+  // Parse author data - handles both old format (string[]) and new enriched format (AuteurEnrichi[])
   const auteurs: AuteurEnrichi[] = travaux.auteurs ? (() => {
     try {
-      return JSON.parse(travaux.auteurs);
+      const parsed = JSON.parse(travaux.auteurs);
+      if (Array.isArray(parsed)) {
+        // Check if it's old format (array of strings) or new format (array of objects)
+        if (parsed.length > 0 && typeof parsed[0] === 'string') {
+          // Old format: convert string IDs to AuteurEnrichi objects
+          return parsed.map((id: string) => ({ acteurRef: id }));
+        }
+        return parsed;
+      }
+      return [];
     } catch {
       return [];
     }
   })() : [];
 
-  // Get primary author info (first one with a name)
-  const auteurPrincipal = auteurs.find(a => a.nom && a.prenom);
+  // Get primary author info (first one with a name, or first one if no names available)
+  const auteurPrincipal = auteurs.find(a => a.nom && a.prenom) || (auteurs.length > 0 ? auteurs[0] : null);
 
   return (
     <Link
@@ -126,7 +135,10 @@ export default function TravauxCard({ travaux }: TravauxCardProps) {
         {auteurPrincipal && (
           <div className="flex items-center gap-2 mb-2 text-sm">
             <span className="text-gray-600">
-              {auteurPrincipal.prenom} {auteurPrincipal.nom}
+              {auteurPrincipal.nom && auteurPrincipal.prenom
+                ? `${auteurPrincipal.prenom} ${auteurPrincipal.nom}`
+                : auteurPrincipal.acteurRef
+              }
             </span>
             {auteurPrincipal.groupeAcronyme && (
               <span

@@ -153,6 +153,16 @@ function determinerStatut(actes: ActeLegislatif[]): StatutExamenTravaux {
   const dernierActe = actesTriees[0];
   const codeActe = dernierActe?.codeActe?.toLowerCase() || '';
 
+  // Also check the libelleActe for status hints (e.g., "Renvoyé à la commission")
+  let libelleActe = '';
+  if (dernierActe?.libelleActe) {
+    if (typeof dernierActe.libelleActe === 'string') {
+      libelleActe = dernierActe.libelleActe.toLowerCase();
+    } else if (dernierActe.libelleActe.nomCanonique) {
+      libelleActe = dernierActe.libelleActe.nomCanonique.toLowerCase();
+    }
+  }
+
   if (codeActe.includes('promulg')) return 'PROMULGUE';
   if (codeActe.includes('adopt') && codeActe.includes('def')) return 'ADOPTE';
   if (codeActe.includes('cmp')) return 'CMP';
@@ -160,6 +170,8 @@ function determinerStatut(actes: ActeLegislatif[]): StatutExamenTravaux {
   if (codeActe.includes('1lec') && codeActe.includes('senat')) return 'PREMIERE_LECTURE_SENAT';
   if (codeActe.includes('1lec')) return 'PREMIERE_LECTURE_AN';
   if (codeActe.includes('seance')) return 'EN_SEANCE';
+  // Check for "renvoi" or "renvoyé" which means sent to commission
+  if (codeActe.includes('renvoi') || codeActe.includes('renvoy') || libelleActe.includes('renvoy')) return 'EN_COMMISSION';
   if (codeActe.includes('com')) return 'EN_COMMISSION';
   if (codeActe.includes('reje')) return 'REJETE';
   if (codeActe.includes('retire')) return 'RETIRE';
