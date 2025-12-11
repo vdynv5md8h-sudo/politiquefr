@@ -119,6 +119,7 @@ model Depute {
   votes                   VoteDepute[]
   promesses               Promesse[]
   questions               Question[]
+  commissionsMemb         MembreCommission[]
 
   @@index([groupeId])
   @@index([departement])
@@ -398,18 +399,27 @@ enum PositionVote {
 
 model Amendement {
   id              String          @id @default(cuid())
+  uid             String          @unique // UID AN (AMANR5L17XXXX)
   numero          String
   chambre         Chambre
+  legislature     Int             @default(17)
 
-  loiId           String
-  loi             Loi             @relation(fields: [loiId], references: [id], onDelete: Cascade)
+  // Lien vers loi OU travaux parlementaire
+  loiId           String?
+  loi             Loi?            @relation(fields: [loiId], references: [id], onDelete: Cascade)
+
+  travauxId       String?
+  travaux         TravauxParlementaire? @relation(fields: [travauxId], references: [id], onDelete: Cascade)
+
+  // Référence au texte (numéro du texte visé)
+  texteLegislatifRef String?
 
   // Contenu
-  dispositif      String?
-  exposeSommaire  String?
+  dispositif      String?         @db.Text
+  exposeSommaire  String?         @db.Text
 
-  // Auteur(s) - JSON array
-  auteurs         String
+  // Auteur(s) - JSON array avec deputeId, nom, prenom, groupe
+  auteurs         String?
 
   // Statut
   sort            SortAmendement
@@ -420,10 +430,13 @@ model Amendement {
   urlAmendement   String?
 
   createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([loiId])
+  @@index([travauxId])
   @@index([dateDepot])
   @@index([sort])
+  @@index([legislature])
 }
 
 enum SortAmendement {
@@ -775,6 +788,7 @@ model TravauxParlementaire {
   // Relations
   resumes               ResumeLLM[]
   indicateurs           IndicateurStatistique[]
+  amendements           Amendement[]
 
   // Metadata
   createdAt             DateTime              @default(now())
@@ -847,6 +861,7 @@ model CommissionParlementaire {
   // Relations
   travaux               TravauxParlementaire[]
   commissionsEnquete    CommissionEnquete[]
+  membres               MembreCommission[]
 
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
@@ -862,6 +877,40 @@ enum TypeCommission {
   ENQUETE
   AD_HOC
   MIXTE_PARITAIRE
+}
+
+enum RoleCommission {
+  PRESIDENT
+  VICE_PRESIDENT
+  SECRETAIRE
+  MEMBRE
+}
+
+// ==================== MEMBRES DES COMMISSIONS ====================
+
+model MembreCommission {
+  id              String                    @id @default(cuid())
+
+  // Relation vers le député
+  deputeId        String
+  depute          Depute                    @relation(fields: [deputeId], references: [id], onDelete: Cascade)
+
+  // Relation vers la commission
+  commissionId    String
+  commission      CommissionParlementaire   @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+
+  // Rôle et période
+  role            RoleCommission            @default(MEMBRE)
+  dateDebut       DateTime?
+  dateFin         DateTime?
+  actif           Boolean                   @default(true)
+
+  createdAt       DateTime                  @default(now())
+
+  @@unique([deputeId, commissionId])
+  @@index([commissionId])
+  @@index([deputeId])
+  @@index([actif])
 }
 
 // ==================== COMMISSIONS D'ENQUÊTE ====================
@@ -1040,4 +1089,85 @@ model IndicateurStatistique {
   @@index([themeId])
   @@index([travauxId])
   @@index([codeInsee])
+}
+
+// ==================== SÉANCES PUBLIQUES ET COMPTES RENDUS ====================
+
+model SeancePublique {
+  id                    String                @id @default(cuid())
+  uid                   String                @unique // CRSANR5L17S2025O1N001
+
+  // Références
+  seanceRef             String?               // RUANR5L17S2025IDS28577
+  sessionRef            String?               // SCR5A2025O1
+
+  // Métadonnées
+  legislature           Int
+  session               String?               // "Session ordinaire 2024-2025"
+  numSeance             Int?                  // Numéro de séance
+  numSeanceJour         String?               // "Unique", "1ère", "2e"
+
+  // Date et heure
+  dateSeance            DateTime
+  dateSeanceStr         String?               // "mardi 01 octobre 2024"
+
+  // Contenu
+  sommaire              String?               @db.Text    // JSON summary with titles and speakers
+  orateurs              String?               @db.Text    // JSON array of speakers with id and name
+
+  // Statistiques
+  nombreInterventions   Int?
+  nombreOrateurs        Int?
+  dureeMinutes          Int?
+
+  // État
+  etat                  String?               // "complet", "partiel"
+  validite              String?               // "valide"
+  diffusion             String?               // "public"
+
+  // Liens
+  urlCompteRendu        String?
+
+  // Relations
+  interventions         Intervention[]
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([legislature])
+  @@index([dateSeance])
+  @@index([session])
+}
+
+model Intervention {
+  id                    String                @id @default(cuid())
+
+  // Référence à la séance
+  seanceId              String
+  seance                SeancePublique        @relation(fields: [seanceId], references: [id], onDelete: Cascade)
+
+  // Référence à l'orateur
+  acteurRef             String?               // PA722xxx
+  deputeId              String?
+  orateur               String                // "Mme Marine Le Pen", "M. Michel Barnier"
+  qualite               String?               // "Premier ministre", "RN"
+  roleDebat             String?               // "president", "orateur"
+
+  // Contenu
+  texte                 String                @db.Text
+  pointOdj              String?               // Point de l'ordre du jour
+  titrePoint            String?               // "Déclaration du Gouvernement"
+
+  // Ordre
+  ordreAbsolu           Int?
+  stime                 Float?                // Timestamp in seconds
+
+  // Type
+  typeIntervention      String?               // "PAROLE_GENERIQUE", "INTERRUPTION"
+
+  createdAt             DateTime              @default(now())
+
+  @@index([seanceId])
+  @@index([acteurRef])
+  @@index([deputeId])
 }

@@ -12,7 +12,6 @@ import {
   synchroniserSenateurs,
   synchroniserMaires,
   synchroniserLois,
-  synchroniserQuestions,
   executerSyncComplete,
 } from '../services/sync.service';
 import {
@@ -20,8 +19,14 @@ import {
   synchroniserTravauxParlementaires,
   synchroniserCommissionsEnquete,
   synchroniserScrutinsAN,
+  synchroniserAmendements,
+  synchroniserQuestions as synchroniserQuestionsAN,
   genererResumes,
   synchroniserIndicateursInsee,
+  calculerStatistiquesDeputes,
+  synchroniserSeancesPubliques,
+  synchroniserCommissions,
+  synchroniserMembresCommissions,
 } from '../services/sync';
 import { logInfo } from '../utils/logger';
 
@@ -239,20 +244,24 @@ router.post('/lois', verifierCleSync, asyncHandler(async (_req: Request, res: Re
   }
 }));
 
-// POST /api/v1/sync/questions?key=xxx - Synchroniser les questions parlementaires
-router.post('/questions', verifierCleSync, asyncHandler(async (_req: Request, res: Response) => {
-  logInfo('Sync questions déclenchée via API');
+// POST /api/v1/sync/questions?key=xxx - Synchroniser les questions parlementaires depuis AN
+router.post('/questions', verifierCleSync, asyncHandler(async (req: Request, res: Response) => {
+  logInfo('Sync questions AN déclenchée via API');
+
+  const limite = req.query.limite ? parseInt(req.query.limite as string) : undefined;
+  const legislature = req.query.legislature ? parseInt(req.query.legislature as string) : 17;
+  const type = req.query.type as 'QE' | 'QG' | 'QOSD' | 'ALL' | undefined;
 
   const journal = await prisma.journalSync.create({
     data: {
-      typeDonnees: 'questions',
+      typeDonnees: 'questions_an',
       statut: 'EN_COURS',
       debuteA: new Date(),
     },
   });
 
   try {
-    const resultat = await synchroniserQuestions(journal.id);
+    const resultat = await synchroniserQuestionsAN(journal.id, { legislature, limite, type });
 
     await prisma.journalSync.update({
       where: { id: journal.id },
@@ -267,7 +276,7 @@ router.post('/questions', verifierCleSync, asyncHandler(async (_req: Request, re
     });
 
     return reponseSucces(res, {
-      message: 'Synchronisation des questions terminée',
+      message: 'Synchronisation des questions AN terminée',
       resultat,
     });
   } catch (err) {
@@ -392,6 +401,53 @@ router.post('/travaux-parlementaires', verifierCleSync, asyncHandler(async (_req
 
     return reponseSucces(res, {
       message: 'Synchronisation des travaux parlementaires terminée',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/amendements?key=xxx - Synchroniser les amendements
+router.post('/amendements', verifierCleSync, asyncHandler(async (req: Request, res: Response) => {
+  const limite = req.query.limite ? parseInt(req.query.limite as string) : undefined;
+  const legislature = req.query.legislature ? parseInt(req.query.legislature as string) : 17;
+
+  logInfo(`Sync amendements déclenchée via API (legislature: ${legislature}, limite: ${limite || 'aucune'})`);
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'amendements',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await synchroniserAmendements(journal.id, { legislature, limite });
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsCrees: resultat.crees,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Synchronisation des amendements terminée',
       resultat,
     });
   } catch (err) {
@@ -573,6 +629,187 @@ router.post('/indicateurs', verifierCleSync, asyncHandler(async (_req: Request, 
 
     return reponseSucces(res, {
       message: 'Synchronisation des indicateurs INSEE terminée',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/seances?key=xxx - Synchroniser les séances publiques (comptes rendus)
+router.post('/seances', verifierCleSync, asyncHandler(async (req: Request, res: Response) => {
+  logInfo('Sync séances publiques déclenchée via API');
+
+  const limite = req.query.limite ? parseInt(req.query.limite as string) : undefined;
+  const legislature = req.query.legislature ? parseInt(req.query.legislature as string) : 17;
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'seances-publiques',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await synchroniserSeancesPubliques(journal.id, { legislature, limite });
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsCrees: resultat.crees,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Synchronisation des séances publiques terminée',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/deputes-stats?key=xxx - Calculer les statistiques d'activité des députés
+router.post('/deputes-stats', verifierCleSync, asyncHandler(async (req: Request, res: Response) => {
+  logInfo('Calcul stats députés déclenché via API');
+
+  const deputeId = req.query.deputeId as string | undefined;
+  const legislature = req.query.legislature ? parseInt(req.query.legislature as string) : undefined;
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'deputes-stats',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await calculerStatistiquesDeputes(journal.id, { deputeId, legislature });
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Calcul des statistiques députés terminé',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/commissions?key=xxx - Synchroniser les commissions parlementaires
+router.post('/commissions', verifierCleSync, asyncHandler(async (_req: Request, res: Response) => {
+  logInfo('Sync commissions parlementaires déclenchée via API');
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'commissions',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await synchroniserCommissions(journal.id);
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsCrees: resultat.crees,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Synchronisation des commissions terminée',
+      resultat,
+    });
+  } catch (err) {
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'ECHEC',
+        termineA: new Date(),
+        messageErreur: String(err),
+      },
+    });
+    throw err;
+  }
+}));
+
+// POST /api/v1/sync/membres-commissions?key=xxx - Synchroniser les liens députés-commissions
+router.post('/membres-commissions', verifierCleSync, asyncHandler(async (_req: Request, res: Response) => {
+  logInfo('Sync membres des commissions déclenchée via API');
+
+  const journal = await prisma.journalSync.create({
+    data: {
+      typeDonnees: 'membres-commissions',
+      statut: 'EN_COURS',
+      debuteA: new Date(),
+    },
+  });
+
+  try {
+    const resultat = await synchroniserMembresCommissions(journal.id);
+
+    await prisma.journalSync.update({
+      where: { id: journal.id },
+      data: {
+        statut: 'TERMINE',
+        termineA: new Date(),
+        enregistrementsTraites: resultat.traites,
+        enregistrementsCrees: resultat.crees,
+        enregistrementsMisAJour: resultat.misAJour,
+        enregistrementsErreurs: resultat.erreurs,
+      },
+    });
+
+    return reponseSucces(res, {
+      message: 'Synchronisation des membres des commissions terminée',
       resultat,
     });
   } catch (err) {

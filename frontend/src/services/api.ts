@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
-import type { TravauxParlementaire, CommissionEnquete, ResumeLLM, IndicateurStatistique } from '../types';
+import type { TravauxParlementaire, CommissionEnquete, ResumeLLM, IndicateurStatistique, Amendement, AmendementStats, SortAmendement } from '../types';
 
 // Configuration de base
 // En développement: utilise le proxy Vite vers localhost:3001
@@ -217,4 +217,13 @@ export const commissionsEnqueteApi = {
     get<ResumeLLM>(`/commissions-enquete/${id}/resume`, { params: { type } }),
   regenererResume: (id: string, type?: string) =>
     post<ResumeLLM>(`/commissions-enquete/${id}/resume`, { type }),
+};
+
+// Amendements
+export const amendementsApi = {
+  liste: (params?: { page?: number; limite?: number; sort?: SortAmendement; legislature?: number; travauxId?: string; auteurRef?: string; tri?: 'dateDepot' | 'numero' | 'sort'; ordre?: 'asc' | 'desc' }) =>
+    get<Amendement[]>('/amendements', { params }),
+  detail: (id: string) => get<Amendement>(`/amendements/${id}`),
+  recents: () => get<Amendement[]>('/amendements/recents'),
+  stats: () => get<AmendementStats>('/amendements/stats'),
 };

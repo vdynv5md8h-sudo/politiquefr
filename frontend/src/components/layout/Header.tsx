@@ -16,7 +16,14 @@ const navigation = [
   },
   { nom: 'Groupes', href: '/groupes' },
   { nom: 'Lois', href: '/lois' },
-  { nom: 'Travaux', href: '/travaux-parlementaires' },
+  {
+    nom: 'Travaux',
+    href: '#',
+    sousMenu: [
+      { nom: 'Travaux parlementaires', href: '/travaux-parlementaires' },
+      { nom: 'Amendements', href: '/amendements' },
+    ],
+  },
   { nom: 'Actualités', href: '/actualites' },
 ];
 

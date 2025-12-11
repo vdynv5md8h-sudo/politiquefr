@@ -16,6 +16,7 @@ import routesSync from './sync.routes';
 import routesDashboard from './dashboard.routes';
 import routesTravauxParlementaires from './travaux-parlementaires.routes';
 import routesCommissionsEnquete from './commissions-enquete.routes';
+import routesAmendements from './amendements.routes';
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.use('/scrutins', routesScrutins);
 // Routes publiques - Travaux parlementaires
 router.use('/travaux-parlementaires', routesTravauxParlementaires);
 router.use('/commissions-enquete', routesCommissionsEnquete);
+router.use('/amendements', routesAmendements);
 
 // Routes publiques - Actualités
 router.use('/actualites', routesActualites);

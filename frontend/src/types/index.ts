@@ -501,3 +501,57 @@ export interface EtapeTimeline {
   date: string;
   statut: 'termine' | 'en_cours' | 'a_venir';
 }
+
+// ==================== AMENDEMENTS ====================
+
+export type SortAmendement =
+  | 'ADOPTE'
+  | 'REJETE'
+  | 'RETIRE'
+  | 'TOMBE'
+  | 'IRRECEVABLE'
+  | 'NON_SOUTENU'
+  | 'EN_COURS';
+
+export interface AuteurAmendement {
+  acteurRef: string;
+  nom?: string;
+  prenom?: string;
+  groupeAcronyme?: string;
+  groupeCouleur?: string;
+}
+
+export interface Amendement {
+  id: string;
+  uid: string;
+  numero: string;
+  chambre: Chambre;
+  legislature: number;
+  travauxId?: string;
+  travaux?: {
+    id: string;
+    titre: string;
+    titreCourt?: string;
+  };
+  loiId?: string;
+  loi?: {
+    id: string;
+    titre: string;
+  };
+  texteLegislatifRef?: string;
+  dispositif?: string;
+  exposeSommaire?: string;
+  auteurs?: string; // JSON string of AuteurAmendement[]
+  sort: SortAmendement;
+  dateDepot: string;
+  dateDiscussion?: string;
+  urlAmendement?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AmendementStats {
+  total: number;
+  parSort: { sort: SortAmendement; nombre: number }[];
+  parLegislature: { legislature: number; nombre: number }[];
+}
