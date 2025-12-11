@@ -82,6 +82,24 @@ export default function DeputeDetailPage() {
     return age;
   };
 
+  // URL vers nosdeputes.fr pour les statistiques détaillées
+  const getStatUrl = (statType: string): string => {
+    const baseUrl = `https://www.nosdeputes.fr/${depute.slug}`;
+    switch (statType) {
+      case 'questionsEcrites':
+      case 'questionsOrales':
+        return `${baseUrl}/questions`;
+      case 'amendementsProposes':
+      case 'amendementsAdoptes':
+        return `${baseUrl}/amendements`;
+      case 'propositionsLoi':
+      case 'rapports':
+        return baseUrl; // Pas de page dédiée, lien vers le profil
+      default:
+        return baseUrl;
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -275,32 +293,80 @@ export default function DeputeDetailPage() {
           />
         </div>
 
-        {/* Autres statistiques */}
+        {/* Autres statistiques - cliquables vers nosdeputes.fr */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <div className="card p-4 text-center">
+          <a
+            href={getStatUrl('questionsEcrites')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-blue-600">{depute.questionsEcrites || 0}</div>
-            <div className="text-sm text-gray-500">Questions écrites</div>
-          </div>
-          <div className="card p-4 text-center">
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Questions écrites
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
+          <a
+            href={getStatUrl('questionsOrales')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-green-600">{depute.questionsOrales || 0}</div>
-            <div className="text-sm text-gray-500">Questions orales</div>
-          </div>
-          <div className="card p-4 text-center">
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Questions orales
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
+          <a
+            href={getStatUrl('propositionsLoi')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-purple-600">{depute.propositionsLoi || 0}</div>
-            <div className="text-sm text-gray-500">Propositions de loi</div>
-          </div>
-          <div className="card p-4 text-center">
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Propositions de loi
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
+          <a
+            href={getStatUrl('rapports')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-orange-600">{depute.rapports || 0}</div>
-            <div className="text-sm text-gray-500">Rapports</div>
-          </div>
-          <div className="card p-4 text-center">
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Rapports
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
+          <a
+            href={getStatUrl('amendementsProposes')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-indigo-600">{depute.amendementsProposes || 0}</div>
-            <div className="text-sm text-gray-500">Amendements proposés</div>
-          </div>
-          <div className="card p-4 text-center">
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Amendements proposés
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
+          <a
+            href={getStatUrl('amendementsAdoptes')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          >
             <div className="text-2xl font-bold text-teal-600">{depute.amendementsAdoptes || 0}</div>
-            <div className="text-sm text-gray-500">Amendements adoptés</div>
-          </div>
+            <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
+              Amendements adoptés
+              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </a>
         </div>
 
         {/* Informations détaillées */}
