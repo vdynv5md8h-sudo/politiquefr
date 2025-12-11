@@ -167,15 +167,58 @@ function determinerStatut(actes: ActeLegislatif[]): StatutExamenTravaux {
   return 'EN_ATTENTE';
 }
 
-function extraireAuteurs(initiateur: DossierLegislatifAN['initiateur']): string | null {
+interface AuteurEnrichi {
+  acteurRef: string;
+  nom?: string;
+  prenom?: string;
+  groupeAcronyme?: string;
+  groupeCouleur?: string;
+}
+
+async function extraireAuteursEnrichis(initiateur: DossierLegislatifAN['initiateur']): Promise<string | null> {
   if (!initiateur?.acteurs?.acteur) return null;
 
   const acteurs = Array.isArray(initiateur.acteurs.acteur)
     ? initiateur.acteurs.acteur
     : [initiateur.acteurs.acteur];
 
-  return JSON.stringify(acteurs.map(a => a.acteurRef));
+  const auteursEnrichis: AuteurEnrichi[] = [];
+
+  for (const acteur of acteurs) {
+    const auteurEnrichi: AuteurEnrichi = { acteurRef: acteur.acteurRef };
+
+    // Try to find the deputy in our database
+    try {
+      const depute = await prisma.depute.findFirst({
+        where: { acteurUid: acteur.acteurRef },
+        include: {
+          groupe: {
+            select: {
+              acronyme: true,
+              couleur: true,
+            },
+          },
+        },
+      });
+
+      if (depute) {
+        auteurEnrichi.nom = depute.nom;
+        auteurEnrichi.prenom = depute.prenom;
+        if (depute.groupe) {
+          auteurEnrichi.groupeAcronyme = depute.groupe.acronyme;
+          auteurEnrichi.groupeCouleur = depute.groupe.couleur || undefined;
+        }
+      }
+    } catch {
+      // If lookup fails, just use the acteurRef
+    }
+
+    auteursEnrichis.push(auteurEnrichi);
+  }
+
+  return JSON.stringify(auteursEnrichis);
 }
+
 
 // ==================== MAIN SYNC FUNCTION ====================
 
@@ -308,6 +351,9 @@ export async function synchroniserTravauxParlementaires(
           if (!options.types.includes(typeDocument)) continue;
         }
 
+        // Extract enriched author data (with name and group from DB)
+        const auteursEnrichis = await extraireAuteursEnrichis(dossier.initiateur);
+
         const travauxData = {
           uid: dossier.uid,
           typeDocument,
@@ -321,7 +367,7 @@ export async function synchroniserTravauxParlementaires(
           statutExamen: determinerStatut(actes),
           urlDocumentPdf: urlDocument,
           urlDossierAN: titreChemin ? `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${titreChemin}` : `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${dossier.uid}`,
-          auteurs: extraireAuteurs(dossier.initiateur),
+          auteurs: auteursEnrichis,
         };
 
         // Upsert

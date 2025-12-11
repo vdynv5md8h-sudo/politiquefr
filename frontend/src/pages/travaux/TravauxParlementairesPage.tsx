@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { travauxApi, commissionsEnqueteApi } from '../../services/api';
 import { TravauxParlementaire, CommissionEnquete, Pagination } from '../../types';
 import TravauxList from '../../components/travaux/TravauxList';
+import TravauxFilters, { TravauxFiltersState } from '../../components/travaux/TravauxFilters';
 import CommissionEnqueteCard from '../../components/travaux/CommissionEnqueteCard';
 import Chargement from '../../components/common/Chargement';
 
@@ -90,30 +91,31 @@ const TABS: TabConfig[] = [
 export default function TravauxParlementairesPage() {
   const [activeTab, setActiveTab] = useState<TabId>('tous');
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<TravauxFiltersState>({});
   const limite = 12;
 
   // Queries pour chaque onglet
   const travauxQuery = useQuery({
-    queryKey: ['travaux', 'liste', page, limite],
-    queryFn: () => travauxApi.liste({ page, limite }),
+    queryKey: ['travaux', 'liste', page, limite, filters],
+    queryFn: () => travauxApi.liste({ page, limite, statut: filters.statut, legislature: filters.legislature }),
     enabled: activeTab === 'tous',
   });
 
   const projetsQuery = useQuery({
-    queryKey: ['travaux', 'projets', page, limite],
-    queryFn: () => travauxApi.projetsLoi({ page, limite }),
+    queryKey: ['travaux', 'projets', page, limite, filters],
+    queryFn: () => travauxApi.liste({ page, limite, type: 'PROJET_LOI', statut: filters.statut, legislature: filters.legislature }),
     enabled: activeTab === 'projets',
   });
 
   const propositionsQuery = useQuery({
-    queryKey: ['travaux', 'propositions', page, limite],
-    queryFn: () => travauxApi.propositionsLoi({ page, limite }),
+    queryKey: ['travaux', 'propositions', page, limite, filters],
+    queryFn: () => travauxApi.liste({ page, limite, type: 'PROPOSITION_LOI', statut: filters.statut, legislature: filters.legislature }),
     enabled: activeTab === 'propositions',
   });
 
   const adoptesQuery = useQuery({
-    queryKey: ['travaux', 'adoptes', page, limite],
-    queryFn: () => travauxApi.textesAdoptes({ page, limite }),
+    queryKey: ['travaux', 'adoptes', page, limite, filters],
+    queryFn: () => travauxApi.liste({ page, limite, statut: 'ADOPTE', legislature: filters.legislature }),
     enabled: activeTab === 'adoptes',
   });
 
@@ -178,6 +180,11 @@ export default function TravauxParlementairesPage() {
     setPage(1);
   };
 
+  const handleFilterChange = (newFilters: TravauxFiltersState) => {
+    setFilters(newFilters);
+    setPage(1);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
@@ -238,6 +245,11 @@ export default function TravauxParlementairesPage() {
 
         {/* Content */}
         <div className="p-6">
+          {/* Filters - show for travaux tabs, not for commissions */}
+          {activeTab !== 'commissions' && (
+            <TravauxFilters filters={filters} onFilterChange={handleFilterChange} />
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Chargement taille="lg" />

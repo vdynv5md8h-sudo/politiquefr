@@ -140,6 +140,20 @@ export type StatutLoi =
   | 'RETIRE'
   | 'CADUQUE';
 
+// Lightweight scrutin for embedding in Loi
+export interface ScrutinLight {
+  id: string;
+  numeroScrutin: number;
+  dateScrutin: string;
+  titre: string;
+  pour: number;
+  contre: number;
+  abstention: number;
+  nombreVotants: number;
+  resultat: ResultatScrutin;
+  urlScrutin?: string;
+}
+
 export interface Loi {
   id: string;
   dossierId: string;
@@ -160,6 +174,7 @@ export interface Loi {
   rapporteurs?: string;
   themeId?: string;
   theme?: ThemeLoi;
+  scrutins?: ScrutinLight[];
 }
 
 export interface ThemeLoi {
@@ -384,6 +399,15 @@ export interface CommissionParlementaire {
   actif: boolean;
 }
 
+// Enriched author data from sync service
+export interface AuteurEnrichi {
+  acteurRef: string;
+  nom?: string;
+  prenom?: string;
+  groupeAcronyme?: string;
+  groupeCouleur?: string;
+}
+
 export interface TravauxParlementaire {
   id: string;
   uid: string;
@@ -401,7 +425,7 @@ export interface TravauxParlementaire {
   exposeSommaire?: string;
   urlDocumentPdf?: string;
   urlDossierAN?: string;
-  auteurs?: string;
+  auteurs?: string; // JSON string of AuteurEnrichi[]
   commission?: CommissionParlementaire;
   theme?: ThemeTravaux;
   resumes?: ResumeLLM[];

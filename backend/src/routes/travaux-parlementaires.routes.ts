@@ -275,7 +275,25 @@ router.get('/:id', async (req: Request, res: Response) => {
       include: {
         theme: true,
         commission: true,
-        loi: true,
+        loi: {
+          include: {
+            scrutins: {
+              select: {
+                id: true,
+                numeroScrutin: true,
+                dateScrutin: true,
+                titre: true,
+                pour: true,
+                contre: true,
+                abstention: true,
+                nombreVotants: true,
+                resultat: true,
+                urlScrutin: true,
+              },
+              orderBy: { dateScrutin: 'desc' },
+            },
+          },
+        },
         resumes: true,
         indicateurs: true,
       },

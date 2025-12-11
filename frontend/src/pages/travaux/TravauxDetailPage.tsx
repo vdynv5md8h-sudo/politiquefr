@@ -3,7 +3,8 @@ import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { travauxApi } from '../../services/api';
 import Chargement from '../../components/common/Chargement';
-import type { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux, ResumeLLM } from '../../types';
+import VotingResults from '../../components/travaux/VotingResults';
+import type { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux, ResumeLLM, Loi } from '../../types';
 import {
   DocumentTextIcon,
   CalendarIcon,
@@ -78,6 +79,7 @@ const STATUT_COLORS: Record<StatutExamenTravaux, string> = {
 
 interface TravauxDetail extends TravauxParlementaire {
   resumes?: ResumeLLM[];
+  loi?: Loi;
 }
 
 interface TimelineItem {
@@ -323,6 +325,11 @@ export default function TravauxDetailPage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Résultats des votes */}
+            {travaux.loi?.scrutins && travaux.loi.scrutins.length > 0 && (
+              <VotingResults scrutins={travaux.loi.scrutins} />
             )}
           </div>
 

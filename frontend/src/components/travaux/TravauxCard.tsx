@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux } from '../../types';
+import { TravauxParlementaire, TypeDocumentParlement, StatutExamenTravaux, AuteurEnrichi } from '../../types';
 
 interface TravauxCardProps {
   travaux: TravauxParlementaire;
@@ -78,6 +78,18 @@ export default function TravauxCard({ travaux }: TravauxCardProps) {
 
   const resumeCourt = travaux.resumes?.find(r => r.typeResume === 'COURT');
 
+  // Parse enriched author data
+  const auteurs: AuteurEnrichi[] = travaux.auteurs ? (() => {
+    try {
+      return JSON.parse(travaux.auteurs);
+    } catch {
+      return [];
+    }
+  })() : [];
+
+  // Get primary author info (first one with a name)
+  const auteurPrincipal = auteurs.find(a => a.nom && a.prenom);
+
   return (
     <Link
       to={`/travaux-parlementaires/${travaux.id}`}
@@ -107,8 +119,33 @@ export default function TravauxCard({ travaux }: TravauxCardProps) {
 
         {/* Titre */}
         <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-          {travaux.titreCourt || travaux.titre}
+          {travaux.titre}
         </h3>
+
+        {/* Auteur et groupe politique */}
+        {auteurPrincipal && (
+          <div className="flex items-center gap-2 mb-2 text-sm">
+            <span className="text-gray-600">
+              {auteurPrincipal.prenom} {auteurPrincipal.nom}
+            </span>
+            {auteurPrincipal.groupeAcronyme && (
+              <span
+                className="px-2 py-0.5 text-xs font-medium rounded-full"
+                style={{
+                  backgroundColor: auteurPrincipal.groupeCouleur ? `${auteurPrincipal.groupeCouleur}20` : '#e5e7eb',
+                  color: auteurPrincipal.groupeCouleur || '#4b5563',
+                }}
+              >
+                {auteurPrincipal.groupeAcronyme}
+              </span>
+            )}
+            {auteurs.length > 1 && (
+              <span className="text-gray-400 text-xs">
+                +{auteurs.length - 1} co-auteur{auteurs.length > 2 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Résumé court si disponible */}
         {resumeCourt && (
