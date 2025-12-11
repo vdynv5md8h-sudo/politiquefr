@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { deputesApi } from '@/services/api';
 import Chargement from '@/components/common/Chargement';
-import type { Depute, VoteDepute, PositionVote } from '@/types';
+import type { Depute, VoteDepute, PositionVote, Question } from '@/types';
 import {
   EnvelopeIcon,
   GlobeAltIcon,
@@ -17,10 +18,15 @@ import {
   MapPinIcon,
   CalendarIcon,
   BuildingLibraryIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DeputeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [questionsFilter, setQuestionsFilter] = useState<'all' | 'QE' | 'QOSD'>('all');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['depute', id],
@@ -40,6 +46,12 @@ export default function DeputeDetailPage() {
     enabled: !!id,
   });
 
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
+    queryKey: ['depute-questions', id, questionsFilter],
+    queryFn: () => deputesApi.questions(id!, { type: questionsFilter === 'all' ? undefined : questionsFilter }),
+    enabled: !!id && showQuestions,
+  });
+
   const depute = data?.donnees as Depute | undefined;
   const votesResponse = votesData?.donnees as { votes: VoteDepute[]; statistiques: Record<string, number> } | undefined;
   const votes = votesResponse?.votes || [];
@@ -48,6 +60,9 @@ export default function DeputeDetailPage() {
     depute: Depute;
     moyennesAssemblee: Record<string, number | null>;
   } | undefined;
+  const questionsResponse = questionsData?.donnees as { questions: Question[]; statistiques: Record<string, number> } | undefined;
+  const questions = questionsResponse?.questions || [];
+  const statsQuestions = questionsResponse?.statistiques;
 
   if (isLoading) {
     return (
@@ -293,32 +308,28 @@ export default function DeputeDetailPage() {
           />
         </div>
 
-        {/* Autres statistiques - cliquables vers nosdeputes.fr */}
+        {/* Autres statistiques - questions cliquables pour afficher les détails */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <a
-            href={getStatUrl('questionsEcrites')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          <button
+            onClick={() => { setShowQuestions(true); setQuestionsFilter('QE'); }}
+            className={`card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group ${showQuestions && questionsFilter === 'QE' ? 'ring-2 ring-blue-500' : ''}`}
           >
             <div className="text-2xl font-bold text-blue-600">{depute.questionsEcrites || 0}</div>
             <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
               Questions écrites
-              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ChevronDownIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </a>
-          <a
-            href={getStatUrl('questionsOrales')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group"
+          </button>
+          <button
+            onClick={() => { setShowQuestions(true); setQuestionsFilter('QOSD'); }}
+            className={`card p-4 text-center hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all cursor-pointer group ${showQuestions && questionsFilter === 'QOSD' ? 'ring-2 ring-green-500' : ''}`}
           >
             <div className="text-2xl font-bold text-green-600">{depute.questionsOrales || 0}</div>
             <div className="text-sm text-gray-500 flex items-center justify-center gap-1">
               Questions orales
-              <ArrowTopRightOnSquareIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ChevronDownIcon className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </a>
+          </button>
           <a
             href={getStatUrl('propositionsLoi')}
             target="_blank"
@@ -368,6 +379,68 @@ export default function DeputeDetailPage() {
             </div>
           </a>
         </div>
+
+        {/* Section Questions parlementaires (collapsible) */}
+        {showQuestions && (
+          <div className="card p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
+                Questions parlementaires
+                {statsQuestions && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({statsQuestions.total} au total)
+                  </span>
+                )}
+              </h2>
+              <button
+                onClick={() => setShowQuestions(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <ChevronUpIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Filtres */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setQuestionsFilter('all')}
+                className={`px-3 py-1 rounded-full text-sm ${questionsFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+              >
+                Toutes
+              </button>
+              <button
+                onClick={() => setQuestionsFilter('QE')}
+                className={`px-3 py-1 rounded-full text-sm ${questionsFilter === 'QE' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+              >
+                Écrites ({statsQuestions?.questionsEcrites || 0})
+              </button>
+              <button
+                onClick={() => setQuestionsFilter('QOSD')}
+                className={`px-3 py-1 rounded-full text-sm ${questionsFilter === 'QOSD' ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
+              >
+                Orales ({statsQuestions?.questionsOrales || 0})
+              </button>
+            </div>
+
+            {/* Liste des questions */}
+            {isLoadingQuestions ? (
+              <div className="py-8 text-center">
+                <Chargement taille="md" texte="Chargement des questions..." />
+              </div>
+            ) : questions.length > 0 ? (
+              <div className="space-y-4">
+                {questions.map((question) => (
+                  <QuestionCard key={question.id} question={question} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                Aucune question trouvée.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Informations détaillées */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -653,6 +726,89 @@ function StatCard({
           {comparaison >= 0 ? '+' : ''}{comparaison.toFixed(1)}{unite} vs moyenne
         </div>
       )}
+    </div>
+  );
+}
+
+// Composant pour afficher une question parlementaire
+function QuestionCard({ question }: { question: Question }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const typeLabel = {
+    QE: { label: 'Écrite', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    QOSD: { label: 'Orale', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    QG: { label: 'Au Gouvernement', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  };
+
+  const config = typeLabel[question.type] || typeLabel.QE;
+
+  // Truncate long text
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  };
+
+  // Clean HTML from text
+  const cleanHtml = (html: string) => {
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const questionText = cleanHtml(question.texteQuestion);
+  const responseText = question.texteReponse ? cleanHtml(question.texteReponse) : null;
+
+  return (
+    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <div className="flex items-start gap-3">
+        <div className="flex-grow">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${config.color}`}>
+              {config.label}
+            </span>
+            {question.rubrique && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {question.rubrique}
+              </span>
+            )}
+            {question.texteReponse && (
+              <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">
+                Répondue
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+            {expanded ? questionText : truncateText(questionText, 200)}
+          </p>
+
+          {expanded && responseText && (
+            <div className="mt-3 p-3 bg-white dark:bg-gray-700 rounded border-l-4 border-green-500">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Réponse du {question.ministereDeveloppe || question.ministereAcronyme || 'Ministère'}
+                {question.dateReponse && ` - ${new Date(question.dateReponse).toLocaleDateString('fr-FR')}`}
+              </p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                {truncateText(responseText, 500)}
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-500">
+              {new Date(question.dateQuestion).toLocaleDateString('fr-FR')}
+              {question.ministereAcronyme && ` • ${question.ministereAcronyme}`}
+            </p>
+
+            {(questionText.length > 200 || responseText) && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                {expanded ? 'Voir moins' : 'Voir plus'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

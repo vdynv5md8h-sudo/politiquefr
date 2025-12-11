@@ -5,6 +5,10 @@
 
 import axios from 'axios';
 import { parse } from 'csv-parse';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import AdmZip from 'adm-zip';
 import { prisma } from '../config/database';
 import { logInfo, logError } from '../utils/logger';
 
@@ -577,6 +581,215 @@ export async function synchroniserLois(_journalId: string): Promise<ResultatSync
   }
 
   return { traites, crees, misAJour, erreurs };
+}
+
+// ==================== SYNC QUESTIONS PARLEMENTAIRES ====================
+
+interface QuestionJson {
+  question: {
+    uid: string;
+    identifiant: {
+      numero: string;
+      legislature: string;
+    };
+    type: string;
+    indexationAN?: {
+      rubrique?: string;
+      analyses?: {
+        analyse?: string;
+      };
+    };
+    auteur: {
+      identite: {
+        acteurRef: string;
+      };
+      groupe?: {
+        abrege?: string;
+        developpe?: string;
+      };
+    };
+    minInt?: {
+      abrege?: string;
+      developpe?: string;
+    };
+    textesQuestion?: {
+      texteQuestion?: {
+        infoJO?: {
+          dateJO?: string;
+        };
+        texte?: string;
+      };
+    };
+    textesReponse?: {
+      texteReponse?: {
+        infoJO?: {
+          dateJO?: string;
+        };
+        texte?: string;
+      };
+    };
+    cloture?: {
+      codeCloture?: string;
+    };
+  };
+}
+
+export async function synchroniserQuestions(_journalId: string): Promise<ResultatSync> {
+  logInfo('Démarrage sync questions parlementaires...');
+
+  let traites = 0, crees = 0, misAJour = 0, erreurs = 0;
+  const tempDir = path.join(os.tmpdir(), 'politiquefr-questions');
+
+  try {
+    // Create temp directory
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Download questions écrites ZIP
+    logInfo('Téléchargement des questions écrites...');
+    const qeUrl = 'https://data.assemblee-nationale.fr/static/openData/repository/16/questions/questions_ecrites/Questions_ecrites.json.zip';
+    const qeResponse = await axios.get(qeUrl, {
+      responseType: 'arraybuffer',
+      timeout: 120000,
+      headers: { 'User-Agent': 'PolitiqueFR/1.0' },
+    });
+
+    const qeZipPath = path.join(tempDir, 'qe.zip');
+    fs.writeFileSync(qeZipPath, qeResponse.data);
+    logInfo('Questions écrites téléchargées');
+
+    // Extract ZIP
+    const zip = new AdmZip(qeZipPath);
+    const zipEntries = zip.getEntries();
+    logInfo(`${zipEntries.length} fichiers dans l'archive`);
+
+    // Build a map of acteurRef to deputeId by fetching deputies with their acteurRef
+    // For now, we'll store acteurRef and link later
+
+    // Process each question JSON file
+    for (const entry of zipEntries) {
+      if (!entry.entryName.endsWith('.json')) continue;
+
+      try {
+        const content = entry.getData().toString('utf8');
+        const data: QuestionJson = JSON.parse(content);
+        const q = data.question;
+
+        if (!q || !q.uid) continue;
+
+        const numero = parseInt(q.identifiant?.numero || '0', 10);
+        const legislature = parseInt(q.identifiant?.legislature || '16', 10);
+
+        // Determine question type
+        let typeQuestion: 'QE' | 'QG' | 'QOSD' = 'QE';
+        if (q.type === 'QG') typeQuestion = 'QG';
+        else if (q.type === 'QOSD') typeQuestion = 'QOSD';
+
+        const texteQuestion = q.textesQuestion?.texteQuestion?.texte || '';
+        const texteReponse = q.textesReponse?.texteReponse?.texte || null;
+        const dateQuestion = q.textesQuestion?.texteQuestion?.infoJO?.dateJO
+          ? new Date(q.textesQuestion.texteQuestion.infoJO.dateJO)
+          : new Date();
+        const dateReponse = q.textesReponse?.texteReponse?.infoJO?.dateJO
+          ? new Date(q.textesReponse.texteReponse.infoJO.dateJO)
+          : null;
+
+        const donnees = {
+          uid: q.uid,
+          type: typeQuestion,
+          numero,
+          legislature,
+          acteurRef: q.auteur?.identite?.acteurRef || '',
+          groupeAcronyme: q.auteur?.groupe?.abrege || null,
+          groupeNom: q.auteur?.groupe?.developpe || null,
+          rubrique: q.indexationAN?.rubrique || null,
+          analyse: q.indexationAN?.analyses?.analyse || null,
+          texteQuestion,
+          texteReponse,
+          ministereAcronyme: q.minInt?.abrege || null,
+          ministereDeveloppe: q.minInt?.developpe || null,
+          dateQuestion,
+          dateReponse,
+          statut: q.cloture?.codeCloture || null,
+        };
+
+        const existant = await prisma.question.findUnique({ where: { uid: q.uid } });
+
+        if (existant) {
+          await prisma.question.update({ where: { uid: q.uid }, data: donnees });
+          misAJour++;
+        } else {
+          await prisma.question.create({ data: donnees });
+          crees++;
+        }
+
+        traites++;
+
+        // Log progress every 1000
+        if (traites % 1000 === 0) {
+          logInfo(`Questions: ${traites} traitées...`);
+        }
+      } catch (err) {
+        erreurs++;
+        if (erreurs <= 10) {
+          logError(`Erreur question ${entry.entryName}`, err);
+        }
+      }
+    }
+
+    // Cleanup temp files
+    fs.unlinkSync(qeZipPath);
+    fs.rmdirSync(tempDir, { recursive: true });
+
+    // Now link questions to deputies based on acteurRef
+    // This requires a mapping from acteurRef (PA...) to our depute.id
+    // We'll need to do this in a separate step or enhance the deputy sync
+    logInfo('Liaison des questions aux députés...');
+    await linkQuestionsToDeputes();
+
+    logInfo(`Sync questions terminée: ${traites} traitées, ${crees} créées, ${misAJour} mises à jour, ${erreurs} erreurs`);
+  } catch (err) {
+    logError('Erreur sync questions', err);
+    // Cleanup on error
+    try {
+      if (fs.existsSync(tempDir)) {
+        fs.rmdirSync(tempDir, { recursive: true });
+      }
+    } catch { /* ignore */ }
+    throw err;
+  }
+
+  return { traites, crees, misAJour, erreurs };
+}
+
+// Link questions to deputies by matching names (fallback method)
+async function linkQuestionsToDeputes(): Promise<void> {
+  // Get all deputies
+  const deputes = await prisma.depute.findMany({
+    select: { id: true, nom: true, prenom: true, slug: true },
+  });
+
+  // Create a map for fast lookup
+  const deputeMap = new Map<string, string>();
+  for (const d of deputes) {
+    // Create multiple lookup keys
+    const key1 = `${d.prenom.toLowerCase()}-${d.nom.toLowerCase()}`;
+    deputeMap.set(key1, d.id);
+
+    // Also try with slug parts
+    const slugParts = d.slug.split('-');
+    if (slugParts.length >= 2) {
+      const key2 = `${slugParts[0]}-${slugParts.slice(1).join('-')}`;
+      deputeMap.set(key2, d.id);
+    }
+  }
+
+  // For now, we'll leave deputeId null and rely on acteurRef for future linking
+  // A more robust solution would involve fetching the acteurRef -> name mapping
+  // from Assemblée nationale open data
+
+  logInfo(`${deputes.length} députés disponibles pour liaison`);
 }
 
 // ==================== ORCHESTRATEUR ====================

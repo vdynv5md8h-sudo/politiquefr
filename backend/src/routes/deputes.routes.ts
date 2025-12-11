@@ -61,4 +61,11 @@ router.get(
   asyncHandler(controleurDeputes.promessesDepute)
 );
 
+// GET /api/v1/deputes/:id/questions - Questions parlementaires d'un député
+router.get(
+  '/:id/questions',
+  middlewareCache(TTL_CACHE.DEPUTES),
+  asyncHandler(controleurDeputes.questionsDepute)
+);
+
 export default router;

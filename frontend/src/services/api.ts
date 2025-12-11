@@ -92,6 +92,8 @@ export const deputesApi = {
   detail: (id: string) => get<unknown>(`/deputes/${id}`),
   votes: (id: string, page?: number) => get<unknown>(`/deputes/${id}/votes`, { params: { page } }),
   activite: (id: string) => get<unknown>(`/deputes/${id}/activite`),
+  questions: (id: string, params?: { page?: number; type?: string }) =>
+    get<unknown>(`/deputes/${id}/questions`, { params }),
   recherche: (q: string) => get<unknown[]>('/deputes/recherche', { params: { q } }),
   stats: () => get<unknown>('/deputes/stats'),
 };

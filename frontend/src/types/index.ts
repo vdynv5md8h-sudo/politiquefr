@@ -293,6 +293,27 @@ export interface AffaireJudiciaire {
   sources?: string;
 }
 
+// Types pour les questions parlementaires
+
+export type TypeQuestion = 'QE' | 'QG' | 'QOSD';
+
+export interface Question {
+  id: string;
+  uid: string;
+  type: TypeQuestion;
+  numero: number;
+  rubrique?: string;
+  analyse?: string;
+  texteQuestion: string;
+  texteReponse?: string;
+  ministereAcronyme?: string;
+  ministereDeveloppe?: string;
+  dateQuestion: string;
+  dateReponse?: string;
+  statut?: string;
+  groupeAcronyme?: string;
+}
+
 // Types pour la pagination
 export interface Pagination {
   page: number;

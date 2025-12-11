@@ -364,3 +364,78 @@ export async function promessesDepute(req: Request, res: Response): Promise<Resp
 
   return reponseSucces(res, { promesses, statistiques });
 }
+
+// Questions parlementaires d'un député
+export async function questionsDepute(req: Request, res: Response): Promise<Response> {
+  const { id } = req.params;
+  const { page, limite, skip } = parserPagination(req.query as { page?: string; limite?: string });
+  const type = req.query.type as string | undefined;
+
+  const depute = await prisma.depute.findFirst({
+    where: {
+      OR: [{ id }, { slug: id }],
+    },
+  });
+
+  if (!depute) {
+    return reponseNonTrouve(res, 'Député');
+  }
+
+  // Build where condition for questions
+  // Questions are linked by acteurRef or deputeId
+  const whereCondition: Record<string, unknown> = {
+    OR: [
+      { deputeId: depute.id },
+      // We'll need to match acteurRef once we have that mapping
+    ],
+  };
+
+  if (type) {
+    whereCondition.type = type.toUpperCase();
+  }
+
+  const [questions, total] = await Promise.all([
+    prisma.question.findMany({
+      where: whereCondition,
+      orderBy: { dateQuestion: 'desc' },
+      skip,
+      take: limite,
+      select: {
+        id: true,
+        uid: true,
+        type: true,
+        numero: true,
+        rubrique: true,
+        analyse: true,
+        texteQuestion: true,
+        texteReponse: true,
+        ministereAcronyme: true,
+        ministereDeveloppe: true,
+        dateQuestion: true,
+        dateReponse: true,
+        statut: true,
+        groupeAcronyme: true,
+      },
+    }),
+    prisma.question.count({ where: whereCondition }),
+  ]);
+
+  const pagination = calculerPagination(page, limite, total);
+
+  // Stats by type
+  const statsParType = await prisma.question.groupBy({
+    by: ['type'],
+    where: whereCondition,
+    _count: { id: true },
+  });
+
+  const statistiques = {
+    total,
+    questionsEcrites: statsParType.find((s) => s.type === 'QE')?._count.id || 0,
+    questionsOrales: statsParType.find((s) => s.type === 'QOSD')?._count.id || 0,
+    questionsGouvernement: statsParType.find((s) => s.type === 'QG')?._count.id || 0,
+    avecReponse: questions.filter((q) => q.texteReponse).length,
+  };
+
+  return reponseSucces(res, { questions, statistiques }, 200, pagination);
+}

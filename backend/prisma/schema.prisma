@@ -116,6 +116,7 @@ model Depute {
   // Relations
   votes                   VoteDepute[]
   promesses               Promesse[]
+  questions               Question[]
 
   @@index([groupeId])
   @@index([departement])
@@ -636,6 +637,58 @@ model JournalAudit {
   @@index([utilisateurId])
   @@index([typeEntite, entiteId])
   @@index([createdAt])
+}
+
+// ==================== QUESTIONS PARLEMENTAIRES ====================
+
+model Question {
+  id                String        @id @default(cuid())
+  uid               String        @unique // Ex: QANR5L16QE83
+
+  // Type et identifiant
+  type              TypeQuestion
+  numero            Int
+  legislature       Int
+
+  // Auteur
+  acteurRef         String        // ID Assemblée nationale (PA...)
+  deputeId          String?
+  depute            Depute?       @relation(fields: [deputeId], references: [id], onDelete: SetNull)
+  groupeAcronyme    String?
+  groupeNom         String?
+
+  // Contenu
+  rubrique          String?       // Thème (ex: "professions de santé")
+  analyse           String?       // Résumé court
+  texteQuestion     String        @db.Text
+  texteReponse      String?       @db.Text
+
+  // Ministère
+  ministereAcronyme String?
+  ministereDeveloppe String?
+
+  // Dates
+  dateQuestion      DateTime
+  dateReponse       DateTime?
+
+  // Statut
+  statut            String?       // REP_PUB, RETRAIT, etc.
+
+  // Métadonnées
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([deputeId])
+  @@index([acteurRef])
+  @@index([type])
+  @@index([dateQuestion])
+  @@index([rubrique])
+}
+
+enum TypeQuestion {
+  QE    // Question écrite
+  QG    // Question au Gouvernement
+  QOSD  // Question orale sans débat
 }
 
 // ==================== SYNCHRONISATION DES DONNÉES ====================
