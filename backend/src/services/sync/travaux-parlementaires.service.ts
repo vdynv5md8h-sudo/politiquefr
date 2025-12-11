@@ -320,7 +320,7 @@ export async function synchroniserTravauxParlementaires(
           chambreOrigine: 'ASSEMBLEE' as Chambre,
           statutExamen: determinerStatut(actes),
           urlDocumentPdf: urlDocument,
-          urlDossierAN: urlDossier || (titreChemin ? `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${titreChemin}` : `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${dossier.uid}`),
+          urlDossierAN: titreChemin ? `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${titreChemin}` : `https://www.assemblee-nationale.fr/dyn/${dossier.legislature}/dossiers/${dossier.uid}`,
           auteurs: extraireAuteurs(dossier.initiateur),
         };
 
