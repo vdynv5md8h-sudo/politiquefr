@@ -97,22 +97,14 @@ export default function DeputeDetailPage() {
     return age;
   };
 
-  // URL vers nosdeputes.fr pour les statistiques détaillées
-  const getStatUrl = (statType: string): string => {
-    const baseUrl = `https://www.nosdeputes.fr/${depute.slug}`;
-    switch (statType) {
-      case 'questionsEcrites':
-      case 'questionsOrales':
-        return `${baseUrl}/questions`;
-      case 'amendementsProposes':
-      case 'amendementsAdoptes':
-        return `${baseUrl}/amendements`;
-      case 'propositionsLoi':
-      case 'rapports':
-        return baseUrl; // Pas de page dédiée, lien vers le profil
-      default:
-        return baseUrl;
+  // URL vers l'Assemblée nationale pour les statistiques détaillées
+  const getStatUrl = (_statType: string): string => {
+    // Utilise urlAssemblee si disponible, sinon construit l'URL
+    if (depute.urlAssemblee) {
+      return depute.urlAssemblee;
     }
+    // Fallback vers la page générale du député
+    return `https://www.assemblee-nationale.fr/dyn/deputes/${depute.id}`;
   };
 
   return (

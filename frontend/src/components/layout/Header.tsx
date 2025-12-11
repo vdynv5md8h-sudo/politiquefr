@@ -16,6 +16,7 @@ const navigation = [
   },
   { nom: 'Groupes', href: '/groupes' },
   { nom: 'Lois', href: '/lois' },
+  { nom: 'Travaux', href: '/travaux-parlementaires' },
   { nom: 'Actualités', href: '/actualites' },
 ];
 

@@ -25,6 +25,24 @@ export default function Footer() {
             <p className="text-xs text-gray-500 dark:text-gray-500">
               Données issues de sources officielles :{' '}
               <a
+                href="https://data.assemblee-nationale.fr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link"
+              >
+                Assemblée nationale
+              </a>
+              ,{' '}
+              <a
+                href="https://data.senat.fr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link"
+              >
+                Sénat
+              </a>
+              ,{' '}
+              <a
                 href="https://data.gouv.fr"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -34,21 +52,12 @@ export default function Footer() {
               </a>
               ,{' '}
               <a
-                href="https://nosdeputes.fr"
+                href="https://www.insee.fr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="link"
               >
-                nosdeputes.fr
-              </a>
-              ,{' '}
-              <a
-                href="https://data.senat.fr"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link"
-              >
-                data.senat.fr
+                INSEE
               </a>
             </p>
           </div>

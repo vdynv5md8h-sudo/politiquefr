@@ -607,7 +607,7 @@ export default function GroupeDetailPage() {
 
         {/* Sources */}
         <div className="mt-8 text-center text-xs text-gray-400">
-          Sources : {groupe.chambre === 'ASSEMBLEE' ? 'Assemblée nationale, nosdeputes.fr' : 'Sénat'}
+          Sources : {groupe.chambre === 'ASSEMBLEE' ? 'Assemblée nationale (data.assemblee-nationale.fr)' : 'Sénat (data.senat.fr)'}
         </div>
       </div>
     </>

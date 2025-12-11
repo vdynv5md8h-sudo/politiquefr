@@ -63,7 +63,8 @@ model Maire {
 
 model Depute {
   id                      String   @id @default(cuid())
-  slug                    String   @unique // Slug nosdeputes.fr
+  slug                    String   @unique // Slug nosdeputes.fr (legacy - garder pour migration)
+  acteurUid               String?  @unique // UID Assemblée nationale (PA722xxx)
 
   // Informations personnelles
   civilite                String
@@ -106,8 +107,9 @@ model Depute {
   facebook                String?
   siteWeb                 String?
   photoUrl                String?
-  urlNosdeputes           String?
+  urlNosdeputes           String?  // DEPRECATED - garder pour migration
   urlAssemblee            String?
+  urlAssembleeNationale   String?  // URL officielle nouvelle structure AN
 
   // Métadonnées
   createdAt               DateTime @default(now())
@@ -263,6 +265,8 @@ model Loi {
   // Relations
   scrutins            Scrutin[]
   amendements         Amendement[]
+  travauxParlementaire TravauxParlementaire?
+  resumes             ResumeLLM[]
 
   @@index([statut])
   @@index([type])
@@ -717,4 +721,323 @@ enum StatutSync {
   EN_COURS
   TERMINE
   ECHEC
+}
+
+// ==================== TRAVAUX PARLEMENTAIRES ====================
+
+model TravauxParlementaire {
+  id                    String                @id @default(cuid())
+  uid                   String                @unique // UID AN (DLR5L17XXXX)
+
+  // Type de travail
+  typeDocument          TypeDocumentParlement
+
+  // Informations de base
+  titre                 String
+  titreOfficiel         String?
+  titreCourt            String?
+
+  // Legislature et dates
+  legislature           Int
+  dateDepot             DateTime
+  dateExamen            DateTime?
+  dateAdoption          DateTime?
+  datePromulgation      DateTime?
+
+  // Chambre d'origine
+  chambreOrigine        Chambre
+
+  // Statut
+  statutExamen          StatutExamenTravaux   @default(EN_ATTENTE)
+
+  // Contenu
+  exposeSommaire        String?               @db.Text
+  urlDocumentPdf        String?
+  urlDossierAN          String?
+  urlDossierSenat       String?
+
+  // Auteurs (JSON array)
+  auteurs               String?               // JSON array of { acteurRef, nom, prenom, groupeId }
+
+  // Commission référente
+  commissionId          String?
+  commission            CommissionParlementaire? @relation(fields: [commissionId], references: [id])
+
+  // Theme/Indexation
+  themeId               String?
+  theme                 ThemeTravaux?         @relation(fields: [themeId], references: [id])
+  rubriques             String?               // JSON array of keywords
+
+  // Lien vers modèle Loi existant (si applicable)
+  loiId                 String?               @unique
+  loi                   Loi?                  @relation(fields: [loiId], references: [id])
+
+  // Relations
+  resumes               ResumeLLM[]
+  indicateurs           IndicateurStatistique[]
+
+  // Metadata
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([typeDocument])
+  @@index([legislature])
+  @@index([statutExamen])
+  @@index([dateDepot])
+  @@index([themeId])
+  @@index([commissionId])
+}
+
+enum TypeDocumentParlement {
+  PROJET_LOI
+  PROPOSITION_LOI
+  PROJET_LOI_ORGANIQUE
+  PROPOSITION_LOI_ORGANIQUE
+  PROJET_LOI_FINANCES
+  PROJET_LOI_REGLEMENT
+  PROJET_LOI_FINANCEMENT_SECU
+  PROPOSITION_RESOLUTION
+  TEXTE_ADOPTE
+  RAPPORT
+  RAPPORT_INFORMATION
+  AVIS
+  COMPTE_RENDU
+}
+
+enum StatutExamenTravaux {
+  EN_ATTENTE
+  EN_COMMISSION
+  EN_SEANCE
+  PREMIERE_LECTURE_AN
+  PREMIERE_LECTURE_SENAT
+  DEUXIEME_LECTURE
+  CMP
+  LECTURE_DEFINITIVE
+  ADOPTE
+  PROMULGUE
+  REJETE
+  RETIRE
+  CADUQUE
+}
+
+// ==================== COMMISSIONS PARLEMENTAIRES ====================
+
+model CommissionParlementaire {
+  id                    String                @id @default(cuid())
+  uid                   String                @unique // UID from AN
+
+  nom                   String
+  nomCourt              String?
+  typeCommission        TypeCommission
+  chambre               Chambre
+  legislature           Int
+
+  // Dates d'activité
+  dateDebut             DateTime?
+  dateFin               DateTime?
+  actif                 Boolean               @default(true)
+
+  // Bureau
+  presidentId           String?
+  vicePresidents        String?               // JSON array
+  secretaires           String?               // JSON array
+
+  urlCommission         String?
+
+  // Relations
+  travaux               TravauxParlementaire[]
+  commissionsEnquete    CommissionEnquete[]
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([typeCommission])
+  @@index([chambre])
+  @@index([legislature])
+}
+
+enum TypeCommission {
+  PERMANENTE
+  SPECIALE
+  ENQUETE
+  AD_HOC
+  MIXTE_PARITAIRE
+}
+
+// ==================== COMMISSIONS D'ENQUÊTE ====================
+
+model CommissionEnquete {
+  id                    String                    @id @default(cuid())
+  uid                   String                    @unique
+
+  titre                 String
+  sujet                 String                    @db.Text
+
+  // Contexte
+  legislature           Int
+  chambre               Chambre
+
+  // Dates
+  dateCreation          DateTime
+  dateFin               DateTime?
+  dureeInitialeMois     Int                       @default(6)
+  prolongations         Int                       @default(0)
+
+  // Composition
+  presidentNom          String?
+  rapporteurNom         String?
+  nombreMembres         Int?
+
+  // Commission mère (si applicable)
+  commissionId          String?
+  commission            CommissionParlementaire?  @relation(fields: [commissionId], references: [id])
+
+  // Statut
+  statut                StatutCommissionEnquete   @default(EN_COURS)
+
+  // Documents
+  urlRapportFinal       String?
+  urlVideos             String?
+  urlCompteRendus       String?
+
+  // Résumés
+  resumes               ResumeLLM[]
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([legislature])
+  @@index([chambre])
+  @@index([statut])
+}
+
+enum StatutCommissionEnquete {
+  EN_COURS
+  TERMINE
+  RAPPORT_DEPOSE
+  ARCHIVE
+}
+
+// ==================== RÉSUMÉS LLM ====================
+
+model ResumeLLM {
+  id                    String                @id @default(cuid())
+
+  // Relations polymorphiques
+  travauxId             String?
+  travaux               TravauxParlementaire? @relation(fields: [travauxId], references: [id], onDelete: Cascade)
+  commissionEnqueteId   String?
+  commissionEnquete     CommissionEnquete?    @relation(fields: [commissionEnqueteId], references: [id], onDelete: Cascade)
+  loiId                 String?
+  loi                   Loi?                  @relation(fields: [loiId], references: [id], onDelete: Cascade)
+
+  // Contenu
+  typeResume            TypeResume
+  contenu               String                @db.Text
+
+  // LLM Metadata
+  modeleLLM             String                // "claude-3-5-sonnet", etc.
+  versionPrompt         String                @default("1.0")
+  tokensEntree          Int?
+  tokensSortie          Int?
+
+  // Quality
+  score                 Float?                // Optional quality score
+  estValide             Boolean               @default(true)
+
+  // Caching
+  hashSource            String?               // Hash of source content for cache invalidation
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([travauxId])
+  @@index([commissionEnqueteId])
+  @@index([loiId])
+  @@index([typeResume])
+  @@unique([travauxId, typeResume])
+  @@unique([commissionEnqueteId, typeResume])
+  @@unique([loiId, typeResume])
+}
+
+enum TypeResume {
+  COURT           // 2-3 phrases
+  MOYEN           // 1 paragraphe
+  LONG            // Plusieurs paragraphes
+  POINTS_CLES     // Liste de points clés
+  VULGARISE       // Version grand public
+}
+
+// ==================== THÈMES DES TRAVAUX ====================
+
+model ThemeTravaux {
+  id                    String                    @id @default(cuid())
+
+  // Identification
+  code                  String                    @unique // "ECO", "SOC", "ENV", etc.
+  nom                   String
+  description           String?
+  couleur               String?                   // Hex color
+  icone                 String?                   // Icon name
+
+  // Hiérarchie
+  parentId              String?
+  parent                ThemeTravaux?             @relation("ThemeHierarchy", fields: [parentId], references: [id])
+  enfants               ThemeTravaux[]            @relation("ThemeHierarchy")
+
+  // Mots-clés pour matching automatique
+  motsCles              String?                   // JSON array
+
+  // Relations
+  travaux               TravauxParlementaire[]
+  indicateurs           IndicateurStatistique[]
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([parentId])
+  @@index([code])
+}
+
+// ==================== INDICATEURS STATISTIQUES (INSEE) ====================
+
+model IndicateurStatistique {
+  id                    String                    @id @default(cuid())
+
+  // Identification
+  codeInsee             String?                   // Code série Insee
+  codeDataGouv          String?                   // Dataset ID on data.gouv.fr
+  nom                   String
+  description           String?
+
+  // Valeur actuelle
+  valeurActuelle        Float?
+  dateValeur            DateTime?
+  unite                 String?                   // "%", "M€", "milliers", etc.
+
+  // Tendance
+  variationAnnuelle     Float?
+  variationMensuelle    Float?
+
+  // Thème
+  themeId               String?
+  theme                 ThemeTravaux?             @relation(fields: [themeId], references: [id])
+
+  // URL source
+  urlSource             String?
+  urlApiInsee           String?
+
+  // Liens vers travaux
+  travauxId             String?
+  travaux               TravauxParlementaire?     @relation(fields: [travauxId], references: [id])
+
+  // Cache
+  derniereMiseAJour     DateTime?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([themeId])
+  @@index([travauxId])
+  @@index([codeInsee])
 }

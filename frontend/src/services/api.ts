@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import type { TravauxParlementaire, CommissionEnquete, ResumeLLM, IndicateurStatistique } from '../types';
 
 // Configuration de base
 // En développement: utilise le proxy Vite vers localhost:3001
@@ -174,4 +175,46 @@ export const geoApi = {
 // Dashboard
 export const dashboardApi = {
   get: () => get<unknown>('/dashboard'),
+};
+
+// Types pour les statistiques
+interface TravauxStats {
+  total: number;
+  parType: { type: string; nombre: number }[];
+  parStatut: { statut: string; nombre: number }[];
+  parLegislature: { legislature: number; nombre: number }[];
+}
+
+// Travaux parlementaires
+export const travauxApi = {
+  liste: (params?: { page?: number; limite?: number; type?: string; statut?: string; legislature?: number }) =>
+    get<TravauxParlementaire[]>('/travaux-parlementaires', { params }),
+  detail: (id: string) => get<TravauxParlementaire>(`/travaux-parlementaires/${id}`),
+  recents: () => get<TravauxParlementaire[]>('/travaux-parlementaires/recents'),
+  projetsLoi: (params?: { page?: number; limite?: number }) =>
+    get<TravauxParlementaire[]>('/travaux-parlementaires/projets-loi', { params }),
+  propositionsLoi: (params?: { page?: number; limite?: number }) =>
+    get<TravauxParlementaire[]>('/travaux-parlementaires/propositions-loi', { params }),
+  textesAdoptes: (params?: { page?: number; limite?: number }) =>
+    get<TravauxParlementaire[]>('/travaux-parlementaires/textes-adoptes', { params }),
+  stats: () => get<TravauxStats>('/travaux-parlementaires/stats'),
+  resume: (id: string, type?: string) =>
+    get<ResumeLLM>(`/travaux-parlementaires/${id}/resume`, { params: { type } }),
+  regenererResume: (id: string, type?: string) =>
+    post<ResumeLLM>(`/travaux-parlementaires/${id}/resume`, { type }),
+  indicateurs: (id: string) => get<IndicateurStatistique[]>(`/travaux-parlementaires/${id}/indicateurs`),
+  timeline: (id: string) => get<{ travaux: TravauxParlementaire; timeline: { etape: string; date: string | null; statut: string }[] }>(`/travaux-parlementaires/${id}/timeline`),
+};
+
+// Commissions d'enquête
+export const commissionsEnqueteApi = {
+  liste: (params?: { page?: number; limite?: number; chambre?: string; statut?: string }) =>
+    get<CommissionEnquete[]>('/commissions-enquete', { params }),
+  detail: (id: string) => get<CommissionEnquete>(`/commissions-enquete/${id}`),
+  enCours: () => get<CommissionEnquete[]>('/commissions-enquete/en-cours'),
+  stats: () => get<{ total: number; parChambre: { chambre: string; nombre: number }[]; parStatut: { statut: string; nombre: number }[] }>('/commissions-enquete/stats'),
+  resume: (id: string, type?: string) =>
+    get<ResumeLLM>(`/commissions-enquete/${id}/resume`, { params: { type } }),
+  regenererResume: (id: string, type?: string) =>
+    post<ResumeLLM>(`/commissions-enquete/${id}/resume`, { type }),
 };

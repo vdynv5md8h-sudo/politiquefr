@@ -305,12 +305,12 @@ export default function Accueil() {
               data.gouv.fr
             </a>
             <a
-              href="https://nosdeputes.fr"
+              href="https://www.insee.fr"
               target="_blank"
               rel="noopener noreferrer"
               className="badge bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
             >
-              nosdeputes.fr
+              INSEE
             </a>
             <a
               href="https://data.senat.fr"

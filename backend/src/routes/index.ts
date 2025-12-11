@@ -14,6 +14,8 @@ import routesAdmin from './admin.routes';
 import routesGeo from './geo.routes';
 import routesSync from './sync.routes';
 import routesDashboard from './dashboard.routes';
+import routesTravauxParlementaires from './travaux-parlementaires.routes';
+import routesCommissionsEnquete from './commissions-enquete.routes';
 
 const router = Router();
 
@@ -31,6 +33,10 @@ router.use('/groupes', routesGroupes);
 // Routes publiques - Lois et scrutins
 router.use('/lois', routesLois);
 router.use('/scrutins', routesScrutins);
+
+// Routes publiques - Travaux parlementaires
+router.use('/travaux-parlementaires', routesTravauxParlementaires);
+router.use('/commissions-enquete', routesCommissionsEnquete);
 
 // Routes publiques - Actualités
 router.use('/actualites', routesActualites);
